@@ -97,5 +97,17 @@
       <button id="confirm-reset" type="button" class="button button-primary">開始新局</button>
     </div>
   </dialog>
+  <dialog id="victory-dialog" aria-labelledby="victory-title">
+    <div class="victory-heading">
+      <span aria-hidden="true">✦</span>
+      <h2 id="victory-title">你贏了！</h2>
+      <span aria-hidden="true">✦</span>
+    </div>
+    <img id="victory-image" alt="">
+    <form method="dialog" class="action-buttons">
+      <button class="button button-outline" autofocus>查看棋盤</button>
+      <button id="play-again" type="button" class="button button-primary">再玩一局</button>
+    </form>
+  </dialog>
 </body>
 </html>

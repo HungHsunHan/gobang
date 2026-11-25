@@ -8,6 +8,7 @@ import {
   selectPointTrio,
   submitPointBid,
 } from './points.mjs';
+import { selectVictoryImage } from './victory.mjs';
 
 const modes = {
   memory: {
@@ -42,6 +43,8 @@ const boardHint = byId('board-hint');
 const helpDialog = byId('help-dialog');
 const handoffDialog = byId('handoff-dialog');
 const resetDialog = byId('reset-dialog');
+const victoryDialog = byId('victory-dialog');
+const victoryImage = byId('victory-image');
 const bidForm = byId('bid-form');
 const bidInputs = byId('bid-inputs');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
@@ -407,12 +410,19 @@ function scheduleComputer() {
 }
 
 function update() {
+  const previousResult = view.result;
   view = readView();
   legalTrios = mode === 'point' && view.phase === 'select' ? listPointTrios(game) : [];
   renderBoard();
   renderStatus();
   renderPointActions();
   scheduleComputer();
+  const image = previousResult ? null : selectVictoryImage(opponent, view.result);
+  if (image) {
+    resetDialog.close();
+    victoryImage.src = image;
+    victoryDialog.showModal();
+  }
 }
 
 board.addEventListener('focusin', (event) => {
@@ -455,7 +465,7 @@ bidForm.addEventListener('submit', (event) => {
   if (bidForm.hidden || player === null || !submitPointBid(game, player, bidAmounts())) return;
   readyBidder = null;
   update();
-  if (!handoffDialog.open) boardCells[focusIndex].focus();
+  if (!handoffDialog.open && !victoryDialog.open) boardCells[focusIndex].focus();
 });
 
 handoffDialog.addEventListener('cancel', (event) => event.preventDefault());
@@ -479,6 +489,14 @@ byId('restart').addEventListener('click', () => requestGame());
 byId('confirm-reset').addEventListener('click', () => {
   resetDialog.close();
   startGame(pendingSettings);
+});
+victoryDialog.addEventListener('close', () => {
+  victoryImage.removeAttribute('src');
+  if (!helpDialog.open) boardCells[focusIndex].focus();
+});
+byId('play-again').addEventListener('click', () => {
+  victoryDialog.close();
+  startGame();
 });
 for (const button of modeButtons) {
   button.addEventListener('click', () => {
