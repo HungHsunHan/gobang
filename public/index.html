@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101913">
+  <meta name="description" content="在盲五子棋記住棋子的歸屬，或在競價五子棋分配點數、爭取落子。支援單人對戰和同機雙人。">
+  <title>藏陣 · 五子棋</title>
+  <link rel="icon" type="image/png" href="./favicon.png">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./game.mjs"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <span class="brand"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>藏陣</span>
+      <button id="help" type="button" class="button button-outline"><span class="help-icon" aria-hidden="true">?</span>玩法說明</button>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="intro">
+      <div>
+        <h1 id="mode-title">盲五子棋</h1>
+        <p id="mode-description">記住每一手的歸屬，在翻面前連成五子。</p>
+      </div>
+      <div class="segmented modes" role="group" aria-label="選擇玩法">
+        <button type="button" data-mode="memory" aria-pressed="true"><span class="mode-icon memory-icon" aria-hidden="true"></span>盲五子棋</button>
+        <button type="button" data-mode="point" aria-pressed="false"><span class="mode-icon point-icon" aria-hidden="true"></span>競價五子棋</button>
+      </div>
+    </div>
+    <div class="game-layout">
+      <section class="panel board-panel" aria-labelledby="board-title">
+        <div class="board-header">
+          <h2 id="board-title">對局棋盤</h2>
+          <span id="board-size" class="board-size">15 × 15</span>
+        </div>
+        <div class="board-frame" id="board-frame">
+          <div class="axis-x" id="axis-x" aria-hidden="true"></div>
+          <div class="axis-y" id="axis-y" aria-hidden="true"></div>
+          <div class="board-surface"><div class="intersections" id="board" role="grid" aria-label="對局棋盤" aria-describedby="board-hint"></div></div>
+        </div>
+        <div class="board-footer">
+          <div class="board-legend" id="board-legend"><span class="legend-token" aria-hidden="true"></span>蓋牌棋子</div>
+          <div id="board-hint">點擊交叉點落子</div>
+        </div>
+      </section>
+      <aside class="sidebar" aria-label="對局控制">
+        <section class="panel match-panel" aria-labelledby="match-title">
+          <div class="sidebar-header"><h2 id="match-title">對局狀態</h2><span class="counter" id="counter">第 1 手</span></div>
+          <div class="players" id="players"></div>
+          <div class="turn" role="status" aria-atomic="true">
+            <span id="turn-dot" class="turn-dot" aria-hidden="true"></span>
+            <div><strong id="turn-title">輪到你落子</strong><p id="turn-detail">你先手，選擇一個空的交叉點。</p></div>
+          </div>
+          <div id="point-actions" hidden>
+            <div id="selection-actions" hidden>
+              <div id="trio-coordinates" class="coordinates"></div>
+              <div class="action-buttons">
+                <button type="button" id="clear-trio" class="button button-outline">清除</button>
+                <button type="button" id="confirm-trio" class="button button-primary">確認三點</button>
+              </div>
+            </div>
+            <form id="bid-form" hidden>
+              <div class="bid-inputs" id="bid-inputs"></div>
+              <p class="bid-summary" id="bid-summary" aria-live="polite"></p>
+              <button type="submit" id="confirm-bid" class="button button-primary wide">送出競價</button>
+            </form>
+            <div id="round-summary" hidden></div>
+          </div>
+        </section>
+        <section class="panel settings-panel" aria-labelledby="settings-title">
+          <h2 id="settings-title">對局設定</h2>
+          <div class="segmented opponents" role="group" aria-label="選擇對手">
+            <button type="button" data-opponent="computer" aria-pressed="true">對戰電腦</button>
+            <button type="button" data-opponent="local" aria-pressed="false">同機雙人</button>
+          </div>
+          <button type="button" id="restart" class="button button-outline wide"><span class="restart-icon" aria-hidden="true">↻</span>重新開局</button>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-header"><h2 id="help-title">玩法說明</h2><form method="dialog"><button class="button button-outline close" aria-label="關閉玩法說明">×</button></form></div>
+    <div id="rules"></div>
+    <form method="dialog"><button class="button button-primary wide">回到棋盤</button></form>
+  </dialog>
+  <dialog id="handoff-dialog" aria-labelledby="handoff-title">
+    <div class="dialog-header"><h2 id="handoff-title">請交給另一位玩家</h2></div>
+    <p id="handoff-detail"></p>
+    <button id="accept-handoff" type="button" class="button button-primary wide">開始競價</button>
+  </dialog>
+  <dialog id="reset-dialog" aria-labelledby="reset-title">
+    <div class="dialog-header"><h2 id="reset-title">結束目前對局？</h2></div>
+    <p>開啟新局後，這盤的進度會清除。</p>
+    <div class="action-buttons">
+      <form method="dialog"><button class="button button-outline wide">繼續對局</button></form>
+      <button id="confirm-reset" type="button" class="button button-primary">開始新局</button>
+    </div>
+  </dialog>
+</body>
+</html>
