@@ -379,6 +379,7 @@ function renderPointActions() {
   if (isBidding) renderBidForm(player);
   else {
     bidInputs.replaceChildren();
+    byId('bid-summary').textContent = '';
     bidKey = '';
   }
   renderRoundSummary();
