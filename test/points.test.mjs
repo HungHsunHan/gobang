@@ -16,12 +16,20 @@ function playRound(game, trio, firstBid, secondBid) {
   assert.equal(submitPointBid(game, 1, secondBid), true);
 }
 
-test('a point game starts with an empty 11 by 11 board and ten points each', () => {
+test('a point game starts with an empty 15 by 15 board and ten points each', () => {
   const view = getPointView(createPointGame());
-  assert.equal(view.size, 11);
-  assert.deepEqual(view.board, Array(121).fill(null));
+  assert.equal(view.size, 15);
+  assert.deepEqual(view.board, Array(225).fill(null));
   assert.equal(view.phase, 'select');
   assert.deepEqual(view.budgets, [10, 10]);
+});
+
+test('a point round can settle all three intersections at the bottom-right edge', () => {
+  const game = createPointGame();
+  const bottomRightTrio = [222, 223, 224];
+  assert.equal(listPointTrios(game).some((trio) => trio.join(',') === bottomRightTrio.join(',')), true);
+  playRound(game, bottomRightTrio, [3, 1, 1], [1, 1, 1]);
+  assert.deepEqual(getPointView(game).board.slice(-3), [0, 1, 1]);
 });
 
 test('the selector must pick three consecutive empty intersections on one line', () => {
@@ -103,12 +111,12 @@ test('simultaneous equal lines draw after all three intersections are awarded', 
 
 test('a player making more lines in the same round wins', () => {
   const game = createPointGame();
-  playRound(game, [44, 45, 46], [3, 3, 3], [1, 1, 1]);
-  playRound(game, [4, 15, 26], [3, 3, 3], [1, 1, 1]);
-  playRound(game, [5, 16, 27], [1, 1, 1], [3, 3, 3]);
-  playRound(game, [36, 37, 38], [5, 5, 1], [1, 1, 5]);
-  playRound(game, [47, 58, 69], [3, 3, 3], [1, 1, 1]);
-  playRound(game, [48, 49, 50], [3, 1, 1], [1, 3, 3]);
+  playRound(game, [60, 61, 62], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [4, 19, 34], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [5, 20, 35], [1, 1, 1], [3, 3, 3]);
+  playRound(game, [48, 49, 50], [5, 5, 1], [1, 1, 5]);
+  playRound(game, [63, 78, 93], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [64, 65, 66], [3, 1, 1], [1, 3, 3]);
   const { result } = getPointView(game);
   assert.equal(result.winner, 0);
   assert.deepEqual(result.lines.map((lines) => lines.length), [2, 1]);

@@ -3,7 +3,7 @@ const ROUND_POINTS = 10;
 const WIN_LENGTH = 5;
 const RUN_VALUES = [0, 0, 4, 24, 150, 2_000];
 
-export function createPointGame(size = 11) {
+export function createPointGame(size = 15) {
   if (!Number.isInteger(size) || size < WIN_LENGTH) {
     throw new RangeError(`Board size must be an integer of at least ${WIN_LENGTH}.`);
   }
