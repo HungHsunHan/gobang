@@ -245,27 +245,29 @@ function biddingPlayer() {
 function renderPlayers(activePlayer) {
   const players = [];
   for (const player of [0, 1]) {
-    const row = document.createElement('div');
-    row.className = `player${activePlayer === player ? ' active' : ''}`;
+    const entry = document.createElement('li');
+    entry.className = `player${activePlayer === player ? ' active' : ''}`;
     const token = document.createElement('span');
     token.className = `player-piece stone-${player}`;
-    token.setAttribute('aria-hidden', 'true');
-    const identity = document.createElement('div');
+    token.setAttribute('role', 'img');
+    token.setAttribute('aria-label', sideName(player));
     const name = document.createElement('span');
     name.className = 'player-name';
     name.textContent = playerName(player);
-    const side = document.createElement('span');
-    side.className = 'player-side';
-    side.textContent = sideName(player);
-    identity.append(name, side);
-    const value = document.createElement('span');
-    value.className = 'player-value';
+    entry.append(token, name);
+
+    let status;
     if (mode === 'point') {
-      if (view.phase === 'bid' && view.submitted[player]) value.textContent = '已出價';
-      else if (opponent === 'computer' && player === 0 && !view.result) value.textContent = `${view.budgets[player]} 點`;
-    } else if (player === 0) value.textContent = '先手';
-    row.append(token, identity, value);
-    players.push(row);
+      if (view.phase === 'bid' && view.submitted[player]) status = '已出價';
+      else if (opponent === 'computer' && player === 0 && !view.result) status = `${view.budgets[player]} 點`;
+    } else if (player === 0) status = '先手';
+    if (status) {
+      const value = document.createElement('span');
+      value.className = 'player-value';
+      value.textContent = status;
+      entry.append(value);
+    }
+    players.push(entry);
   }
   byId('players').replaceChildren(...players);
 }

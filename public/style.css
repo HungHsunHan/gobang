@@ -55,8 +55,16 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .panel { border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); box-shadow: 0 12px 30px #070f0950; }
 .board-panel { padding: 15px 18px 13px; }
 .board-header, .board-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.board-header { margin-bottom: 13px; }
+.board-header { align-items: baseline; margin-bottom: 13px; }
+.board-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.board-heading h2, .board-size { white-space: nowrap; }
 .board-size { color: var(--muted); font: 600 .82rem var(--mono); letter-spacing: .04em; }
+.players { display: flex; flex-wrap: wrap; gap: 4px 10px; list-style: none; margin: 0; padding: 0; font-size: .75rem; color: var(--muted); }
+.player { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.player.active .player-name { color: var(--accent); }
+.player-piece { width: 11px; height: 11px; box-shadow: 0 0 0 1px #ffffff38; }
+.player-name { font-weight: 650; }
+.player-value { font-variant-numeric: tabular-nums; }
 .board-frame { --axis: clamp(16px, 2.8vw, 30px); position: relative; display: grid; grid-template: var(--axis) minmax(0, 1fr) / var(--axis) minmax(0, 1fr); aspect-ratio: 1; max-width: 620px; margin-inline: auto; padding: 3px var(--axis) var(--axis) 3px; border: 1px solid #efca88; border-radius: 11px; color: #422d1b; background: repeating-linear-gradient(179deg, #512a0712 0 1px, transparent 1px 5px), radial-gradient(ellipse at 80% 16%, #efc78e, #d5a36a 65%, #bd8b55); box-shadow: inset 0 0 23px #68401f48, 0 9px 16px #0a110b70; }
 .axis-x, .axis-y { display: grid; font: 700 clamp(.56rem, 1.15vw, .73rem) var(--mono); user-select: none; }
 .axis-x { grid-column: 2; grid-row: 1; grid-template-columns: repeat(var(--size, 15), minmax(0, 1fr)); }
@@ -113,17 +121,10 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .match-panel, .settings-panel { padding: 16px; }
 .sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
 .counter { color: #e2cba4; font-size: .82rem; font-weight: 650; font-variant-numeric: tabular-nums; border: 1px solid #5b503b; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
-.players { display: grid; gap: 7px; }
-.player { min-width: 0; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; min-height: 49px; background: #111c15; border: 1px solid #314035; border-radius: 8px; }
-.player.active { border-color: #a3885e; background: #272a20; }
-.player-piece { width: 23px; height: 23px; box-shadow: 0 0 0 1px #ffffff30, inset 0 1px 2px #ffffff55; }
-.player-name { display: block; font-size: .93rem; font-weight: 700; }
-.player-side, .player-value { color: var(--muted); font-size: .8rem; }
-.player-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.turn { display: flex; gap: 9px; border-top: 1px solid #354337; margin-top: 15px; padding-top: 13px; line-height: 1.5; }
-.turn strong { font-size: .95rem; }
-.turn p { color: var(--muted); font-size: .875rem; margin-top: 3px; }
-.turn-dot { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 8px; box-shadow: 0 0 0 3px #dfb77a21; }
+.turn { display: flex; gap: 9px; border-top: 1px solid #354337; padding-top: 13px; line-height: 1.5; }
+.turn strong { font-size: 1.1rem; }
+.turn p { color: var(--muted); font-size: 1rem; margin-top: 3px; }
+.turn-dot { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 9px; box-shadow: 0 0 0 3px #dfb77a21; }
 .settings-panel { display: grid; gap: 11px; }
 .settings-panel h2 { margin-bottom: 2px; }
 
@@ -132,8 +133,9 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .coordinates, .bid-inputs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .action-buttons { grid-template-columns: 1fr 1fr; }
 .coordinates span, .bid-inputs label { border: 1px solid var(--border); border-radius: 7px; padding: 5px; text-align: center; color: var(--muted); }
-.coordinates span { font: 650 .85rem var(--mono); min-height: 29px; }
+.coordinates span { font: 650 1rem var(--mono); min-height: 32px; }
 #selection-actions .action-buttons { margin-top: 8px; }
+#selection-actions .button { font-size: 1.05rem; }
 .bid-inputs label { display: grid; gap: 6px; font: 700 .82rem var(--mono); }
 .bid-inputs input { padding: 5px 2px 5px 6px; background: var(--deep); color: #f2f0e4; width: 100%; min-height: 35px; border: 1px solid #4b5b4c; border-radius: 5px; font-size: 1rem; }
 .bid-summary { color: var(--muted); font-size: .84rem; margin: 7px 0 9px; }

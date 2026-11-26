@@ -1,7 +1,6 @@
 const DIRECTIONS = [[0, 1], [1, 0], [1, 1], [1, -1]];
 const ROUND_POINTS = 10;
 const WIN_LENGTH = 5;
-const RUN_VALUES = [0, 0, 4, 24, 150, 2_000];
 
 export function createPointGame(size = 15) {
   if (!Number.isInteger(size) || size < WIN_LENGTH) {
@@ -69,13 +68,10 @@ function scanRun(board, size, index, player, [dr, dc]) {
   while (at(board, size, row + dr * after, col + dc * after) === player) after++;
 
   const stride = dr * size + dc;
-  const openBefore = at(board, size, row - dr * before, col - dc * before) === null;
-  const openAfter = at(board, size, row + dr * after, col + dc * after) === null;
   return {
     start: index - (before - 1) * stride,
     stride,
     length: before + after - 1,
-    openEnds: Number(openBefore) + Number(openAfter),
   };
 }
 
@@ -164,15 +160,8 @@ export function getPointView(game) {
   };
 }
 
-function tacticalValue({ board, size }, index, player) {
-  let score = 0;
-  for (const direction of DIRECTIONS) {
-    const { length, openEnds } = scanRun(board, size, index, player, direction);
-    const value = RUN_VALUES[Math.min(length, WIN_LENGTH)];
-    if (length >= WIN_LENGTH || openEnds === 2) score += value;
-    else if (openEnds === 1) score += value * 0.5;
-  }
-  return score;
+function makesPointLine({ board, size }, index, player) {
+  return DIRECTIONS.some((direction) => scanRun(board, size, index, player, direction).length >= WIN_LENGTH);
 }
 
 function centerValue(index, size) {
@@ -182,15 +171,14 @@ function centerValue(index, size) {
 
 export function choosePointTrio(game) {
   if (game.phase !== 'select') return null;
-  const own = game.board.map((point, index) => point === null ? tacticalValue(game, index, game.selector) : 0);
-  const opponent = game.board.map((point, index) => point === null ? tacticalValue(game, index, 1 - game.selector) : 0);
+  const winningPoints = game.board.map((point, index) => point === null && makesPointLine(game, index, game.selector));
+  const winPriority = 3 * game.size;
   let choice = null;
   let best = -Infinity;
   for (const trio of legalTrios(game)) {
-    const attack = trio.map((index) => own[index]);
-    const threat = Math.max(...trio.map((index) => opponent[index]));
+    const canWin = trio.some((index) => winningPoints[index]);
     const center = trio.reduce((sum, index) => sum + centerValue(index, game.size), 0);
-    const score = Math.max(...attack) + attack.reduce((sum, value) => sum + value, 0) - threat * 1.25 + center;
+    const score = Number(canWin) * winPriority + center;
     if (score > best) {
       choice = trio;
       best = score;
@@ -201,15 +189,14 @@ export function choosePointTrio(game) {
 
 export function choosePointBid(game, player) {
   if (game.phase !== 'bid' || (player !== 0 && player !== 1) || game.bids[player] !== null) return null;
-  const values = game.trio.map((point) => {
-    return tacticalValue(game, point, player) * 1.1 + tacticalValue(game, point, 1 - player);
-  });
-  const budget = game.budgets[player] - (Math.max(...values) < RUN_VALUES[4] ? 2 : 0);
-  const weights = values.map((value, slot) => value + centerValue(game.trio[slot], game.size));
-  const bid = [1, 1, 1];
-  for (let remaining = budget - 3; remaining > 0; remaining--) {
-    const scores = weights.map((weight, slot) => weight / bid[slot]);
-    bid[scores.indexOf(Math.max(...scores))]++;
+  let target = game.trio.findIndex((point) => makesPointLine(game, point, player));
+  if (target === -1) target = game.trio.findIndex((point) => makesPointLine(game, point, 1 - player));
+  if (target === -1) {
+    const bid = [3, 3, 3];
+    bid[(game.round - 1) % bid.length] = 2;
+    return bid;
   }
+  const bid = [2, 2, 2];
+  bid[target] = 4;
   return bid;
 }

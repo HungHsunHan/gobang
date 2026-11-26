@@ -117,3 +117,8 @@ test('the computer blocks a rival four with a single winning end', () => {
   const game = playMoves(createMemoryGame(9), [0, 72, 1, 74, 2, 76, 3]);
   assert.equal(chooseMemoryMove(game), 4);
 });
+
+test('the beginner computer builds its own line while a rival three is still open', () => {
+  const game = playMoves(createMemoryGame(9), [29, 40, 30, 80, 31]);
+  assert.equal(chooseMemoryMove(game), 39);
+});

@@ -1,12 +1,5 @@
 const DIRECTIONS = [[0, 1], [1, 0], [1, 1], [1, -1]];
 const LINE_LENGTH = 5;
-const OPEN_END_SCORES = [
-  [0, 0, 0],
-  [0, 0, 2],
-  [0, 3, 22],
-  [0, 18, 180],
-  [0, 115, 900],
-];
 
 export function createMemoryGame(size = 15) {
   if (!Number.isInteger(size) || size < LINE_LENGTH) {
@@ -86,14 +79,11 @@ export function getMemoryView(game) {
   };
 }
 
-function scoreLines(lines) {
-  return lines.reduce((score, { indices, openEnds }) => score + OPEN_END_SCORES[indices.length][openEnds], 0);
-}
-
 export function chooseMemoryMove(game) {
   if (game.result) return null;
 
   const center = (game.size - 1) / 2;
+  let blockingMove = null;
   let bestMove = null;
   let bestScore = -Infinity;
 
@@ -103,13 +93,15 @@ export function chooseMemoryMove(game) {
     const attack = linesThrough(game, index, game.turn);
     if (attack.some(({ indices }) => indices.length >= LINE_LENGTH)) return index;
 
-    const defense = linesThrough(game, index, 1 - game.turn);
-    const blocksWin = defense.some(({ indices }) => indices.length >= LINE_LENGTH);
+    if (blockingMove === null && linesThrough(game, index, 1 - game.turn).some(({ indices }) => indices.length >= LINE_LENGTH)) {
+      blockingMove = index;
+    }
+
     const row = Math.floor(index / game.size);
     const column = index % game.size;
     const distance = Math.abs(row - center) + Math.abs(column - center);
-    const defenseScore = blocksWin ? 10_000 : scoreLines(defense) * 0.85;
-    const score = scoreLines(attack) + defenseScore + 1 / (1 + distance);
+    const extendsLine = attack.some(({ indices, openEnds }) => indices.length > 1 && openEnds > 0);
+    const score = Number(extendsLine) + 1 / (1 + distance);
 
     if (score > bestScore) {
       bestMove = index;
@@ -117,5 +109,5 @@ export function chooseMemoryMove(game) {
     }
   }
 
-  return bestMove;
+  return blockingMove ?? bestMove;
 }

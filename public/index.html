@@ -31,7 +31,10 @@
     <div class="game-layout">
       <section class="panel board-panel" aria-labelledby="board-title">
         <div class="board-header">
-          <h2 id="board-title">對局棋盤</h2>
+          <div class="board-heading">
+            <h2 id="board-title">對局棋盤</h2>
+            <ul class="players" id="players" role="list" aria-label="對局玩家"></ul>
+          </div>
           <span id="board-size" class="board-size">15 × 15</span>
         </div>
         <div class="board-frame" id="board-frame">
@@ -47,7 +50,6 @@
       <aside class="sidebar" aria-label="對局控制">
         <section class="panel match-panel" aria-labelledby="match-title">
           <div class="sidebar-header"><h2 id="match-title">對局狀態</h2><span class="counter" id="counter">第 1 手</span></div>
-          <div class="players" id="players"></div>
           <div class="turn" role="status" aria-atomic="true">
             <span id="turn-dot" class="turn-dot" aria-hidden="true"></span>
             <div><strong id="turn-title">輪到你落子</strong><p id="turn-detail">你先手，選擇一個空的交叉點。</p></div>

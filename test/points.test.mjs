@@ -137,6 +137,20 @@ test('a board with vacancies but no remaining legal trio ends in a draw', () => 
   assert.equal(choosePointTrio(game), null);
 });
 
+test('the beginner computer selects a central trio over extending a three-stone line', () => {
+  const game = createPointGame(7);
+  playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [42, 43, 44], [1, 1, 1], [3, 3, 3]);
+  assert.equal(choosePointTrio(game).includes(24), true);
+});
+
+test('the beginner computer keeps bidding modest on a three-stone line', () => {
+  const game = createPointGame(7);
+  playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
+  assert.equal(selectPointTrio(game, [3, 4, 5]), true);
+  assert.deepEqual(choosePointBid(game, 0).toSorted(), [2, 3, 3]);
+});
+
 test('computer selects an immediate winning opportunity and prioritizes its bid', () => {
   const game = createPointGame(7);
   playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
@@ -145,7 +159,7 @@ test('computer selects an immediate winning opportunity and prioritizes its bid'
   assert.equal(trio.includes(4), true);
   assert.equal(selectPointTrio(game, trio), true);
   const computerBid = choosePointBid(game, 0);
-  assert.equal(computerBid[trio.indexOf(4)], Math.max(...computerBid));
+  assert.equal(computerBid[trio.indexOf(4)], 4);
   assert.equal(submitPointBid(game, 1, [1, 1, 1]), true);
   assert.deepEqual(choosePointBid(game, 0), computerBid);
   assert.equal(submitPointBid(game, 0, computerBid), true);
