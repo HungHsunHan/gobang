@@ -6,6 +6,8 @@ import { networkInterfaces, platform } from 'node:os';
 import { extname, isAbsolute, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
+import { handleRoomRequest, isRoomPath } from './room-api.mjs';
+import { handleRoom } from './room-state.mjs';
 
 const LOCAL_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8788;
@@ -104,7 +106,38 @@ function sendError(response, status, message, headers) {
   response.end(message);
 }
 
+function createLocalRoomDispatcher() {
+  const rooms = new Map();
+  return (input) => {
+    const now = Date.now();
+    if (input.operation === 'create') {
+      for (const [code, room] of rooms) {
+        if (room.expiresAt <= now) rooms.delete(code);
+      }
+    }
+    const result = handleRoom(rooms.get(input.code), input, now);
+    if (result.room) rooms.set(input.code, result.room);
+    return result;
+  };
+}
+
+function requestBody(request) {
+  // Stop reading an oversized body without destroying the socket before the 413 is sent.
+  const iterator = request.iterator({ destroyOnReturn: false });
+  return new ReadableStream({
+    async pull(controller) {
+      const { value, done } = await iterator.next();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    cancel() {
+      return iterator.return();
+    },
+  }, { highWaterMark: 0 });
+}
+
 export function createGameServer(binding, { publicDirectory = PUBLIC_DIRECTORY } = {}) {
+  const dispatchRoom = createLocalRoomDispatcher();
   const server = createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -113,12 +146,23 @@ export function createGameServer(binding, { publicDirectory = PUBLIC_DIRECTORY }
       sendError(response, 403, '請使用伺服器顯示的網址，並確認裝置已連到相同的家庭網路。');
       return;
     }
+    const path = request.url.split('?', 1)[0];
+    if (isRoomPath(path)) {
+      const result = await handleRoomRequest({
+        url: `http://${request.headers.host}${request.url}`,
+        method: request.method,
+        headers: new Headers(request.headers),
+        body: request.method === 'POST' ? requestBody(request) : null,
+      }, dispatchRoom);
+      response.writeHead(result.status, Object.fromEntries(result.headers));
+      response.end(await result.text());
+      return;
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       sendError(response, 405, '此網址只提供讀取。', { Allow: 'GET, HEAD' });
       return;
     }
 
-    const path = request.url.split('?', 1)[0];
     const asset = path === '/' ? '/index.html' : path;
     const contentType = MIME_TYPES[extname(asset)];
     if (!contentType || !/^\/(?:[\w-]+\/)*[\w-]+\.[a-z0-9]+$/.test(asset)) {

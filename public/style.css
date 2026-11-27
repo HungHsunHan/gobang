@@ -24,6 +24,8 @@ h2 { font-size: 1rem; letter-spacing: .05em; }
 .shell { max-width: 1140px; margin-inline: auto; padding-inline: 26px; }
 .topbar { background: #111b15; border-bottom: 1px solid #2b392e; }
 .topbar-inner { min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.topbar-actions { display: flex; gap: 8px; }
+.topbar-actions .button { white-space: nowrap; }
 .brand { display: inline-flex; align-items: center; gap: 11px; font-size: 1.2rem; font-weight: 750; letter-spacing: .12em; }
 .brand-icon { width: 29px; height: 29px; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 3px; padding: 4px; border: 1px solid #77664c; border-radius: 7px; transform: rotate(-8deg); }
 .brand-icon i { border: 1px solid #ae925f; border-radius: 50%; }
@@ -127,6 +129,15 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .turn-dot { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 9px; box-shadow: 0 0 0 3px #dfb77a21; }
 .settings-panel { display: grid; gap: 11px; }
 .settings-panel h2 { margin-bottom: 2px; }
+.room-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px; margin-bottom: 16px; }
+.room-identity, .room-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.room-identity { font-size: .9rem; color: var(--muted); }
+#room-code { color: var(--accent); font: 750 1.25rem var(--mono); letter-spacing: .1em; -webkit-user-select: all; user-select: all; }
+#room-side { color: #f2f0e4; }
+.room-controls .button { min-height: 44px; white-space: nowrap; }
+#room-notice { flex-basis: 100%; color: var(--accent); font-size: .9rem; line-height: 1.5; }
+#room-rematch { margin-top: 13px; }
+.room-copy-selection { position: fixed; top: 0; left: 0; width: 1px; height: 1px; font-size: 1rem; opacity: 0; }
 
 #point-actions { margin-top: 13px; }
 .coordinates, .bid-inputs, .action-buttons { display: grid; gap: 7px; }
@@ -153,6 +164,14 @@ dialog p, dialog li { color: var(--muted); line-height: 1.65; }
 dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
 #rules ol { padding-left: 23px; margin: 0 0 17px; }
 #rules li + li { margin-top: 7px; }
+.room-create { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+#create-room { margin-top: 9px; }
+#join-room-form { margin-top: 15px; }
+#join-room-form > label { display: block; margin-bottom: 7px; font-weight: 650; }
+.room-join-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.room-join-fields input { min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid #4b5b4c; border-radius: 8px; background: var(--deep); color: #f2f0e4; font: 650 1rem var(--mono); text-transform: uppercase; }
+.room-join-fields input::placeholder { color: var(--muted); text-transform: none; }
+#room-entry-status { margin-top: 12px; color: var(--accent); }
 
 #victory-dialog {
   width: min(536px, calc(100% - 28px));
@@ -191,6 +210,9 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
 
 @media (max-width: 770px) {
   .shell { padding-inline: 16px; }
+  .topbar-inner { gap: 8px; }
+  .topbar-actions { gap: 6px; }
+  .topbar-actions .button { padding-inline: 9px; }
   main.shell { max-width: 640px; padding-top: 21px; }
   .intro { align-items: start; flex-direction: column; gap: 14px; margin-bottom: 15px; }
   .modes { width: 100%; }
@@ -200,6 +222,19 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   .board-footer { margin-top: 8px; }
   .sidebar { gap: 13px; }
   .board-frame { --axis: clamp(15px, 4vw, 24px); }
+  .room-panel { margin-bottom: 13px; }
+}
+
+@media (max-width: 520px) {
+  .room-panel { gap: 8px 12px; padding-inline: 11px; }
+  .room-identity { display: grid; grid-template-columns: auto auto; gap: 2px 7px; }
+  #room-side { grid-column: 1 / -1; }
+  .room-controls { gap: 6px; }
+  .room-controls .button { padding-inline: 9px; }
+}
+
+@media (max-width: 345px) {
+  .topbar-actions .help-icon { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

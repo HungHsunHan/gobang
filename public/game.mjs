@@ -8,6 +8,17 @@ import {
   selectPointTrio,
   submitPointBid,
 } from './points.mjs';
+import {
+  createRoom,
+  joinRoom,
+  makeRoomToken,
+  normalizeRoomCode,
+  readRoom,
+  readRoomSession,
+  RoomConnection,
+  RoomError,
+  writeRoomSession,
+} from './rooms.mjs';
 import { selectVictoryImage } from './victory.mjs';
 
 const modes = {
@@ -47,6 +58,8 @@ const victoryDialog = byId('victory-dialog');
 const victoryImage = byId('victory-image');
 const bidForm = byId('bid-form');
 const bidInputs = byId('bid-inputs');
+const roomDialog = byId('room-dialog');
+const roomCodeInput = byId('join-room-code');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const opponentButtons = [...document.querySelectorAll('[data-opponent]')];
 
@@ -62,6 +75,12 @@ let readyBidder = null;
 let bidKey = '';
 let computerTimer;
 let pendingSettings;
+let offlineGame;
+let room;
+let savedRoom = readRoomSession();
+let enteringRoom = false;
+let joinAttempt;
+let copyMessage = '';
 
 function coordinate(index) {
   return `${columns[index % view.size]}${Math.floor(index / view.size) + 1}`;
@@ -69,6 +88,7 @@ function coordinate(index) {
 
 function playerName(player) {
   if (opponent === 'computer') return player === 0 ? '你' : '電腦';
+  if (room?.snapshot) return player === room.snapshot.player ? '你' : '對手';
   return `玩家 ${player + 1}`;
 }
 
@@ -77,23 +97,32 @@ function sideName(player) {
 }
 
 function readView() {
+  if (room?.snapshot) return room.snapshot.view;
   return mode === 'memory' ? getMemoryView(game) : getPointView(game);
+}
+
+function displayGame() {
+  view = readView();
+  bidKey = '';
+  buildBoard();
+  byId('mode-title').textContent = modes[mode].title;
+  byId('mode-description').textContent = modes[mode].description;
+  byId('mode-selector').hidden = Boolean(room);
+  byId('settings-panel').hidden = Boolean(room);
+  byId('open-room').hidden = Boolean(room);
+  byId('room-panel').hidden = !room;
+  for (const button of modeButtons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
+  for (const button of opponentButtons) button.setAttribute('aria-pressed', String(button.dataset.opponent === opponent));
+  update();
 }
 
 function startGame(settings = { mode, opponent }) {
   clearTimeout(computerTimer);
   ({ mode, opponent } = settings);
   game = mode === 'memory' ? createMemoryGame() : createPointGame();
-  view = readView();
   draft = [];
   readyBidder = null;
-  bidKey = '';
-  buildBoard();
-  byId('mode-title').textContent = modes[mode].title;
-  byId('mode-description').textContent = modes[mode].description;
-  for (const button of modeButtons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
-  for (const button of opponentButtons) button.setAttribute('aria-pressed', String(button.dataset.opponent === opponent));
-  update();
+  displayGame();
 }
 
 function requestGame(settings = { mode, opponent }) {
@@ -183,11 +212,20 @@ function moveGridFocus(event) {
 }
 
 function canSelectPoint() {
-  return view.phase === 'select' && (opponent === 'local' || view.selector === 0);
+  return view.phase === 'select' && canPlayAs(view.selector);
 }
 
 function canPlayMemory() {
-  return !view.result && (opponent === 'local' || view.turn === 0);
+  return !view.result && canPlayAs(view.turn);
+}
+
+function canPlayAs(player) {
+  if (room) return room.snapshot?.joined && player === room.snapshot.player;
+  return opponent === 'local' || player === 0;
+}
+
+function roomActionBlocked() {
+  return Boolean(room && (room.busy || room.disconnected || room.ended));
 }
 
 function possiblePoints() {
@@ -203,12 +241,12 @@ function possiblePoints() {
 function renderBoard() {
   const isMemory = mode === 'memory';
   const selection = isMemory ? [] : view.phase === 'bid' ? view.trio : draft;
-  const enabledPoints = !isMemory && canSelectPoint() ? possiblePoints() : new Set();
+  const enabledPoints = !isMemory && canSelectPoint() && !roomActionBlocked() ? possiblePoints() : new Set();
   const result = view.result;
   const winningLine = !isMemory && result?.winner != null ? result.lines[result.winner].flat() : result?.line;
   const winningCells = new Set(winningLine);
   const latestCells = isMemory ? [view.lastMove] : (view.lastRound?.trio ?? []);
-  const canPlace = isMemory && canPlayMemory();
+  const canPlace = isMemory && canPlayMemory() && !roomActionBlocked();
   for (const [index, cell] of boardCells.entries()) {
     const stone = view.board[index];
     const selected = selection.indexOf(index);
@@ -231,13 +269,23 @@ function renderBoard() {
 
   legendText.textContent = isMemory && !view.result ? '蓋牌棋子' : '深色方／淺色方';
   legendToken.classList.toggle('legend-sides', !isMemory || Boolean(view.result));
-  if (view.result) boardHint.textContent = isMemory ? '棋子已翻面' : '本局已結算';
+  if (room?.busy) boardHint.textContent = '同步棋局中';
+  else if (room?.disconnected && !room.ended) boardHint.textContent = '正在重新連線';
+  else if (view.result) boardHint.textContent = isMemory ? '棋子已翻面' : '本局已結算';
+  else if (room && !room.snapshot?.joined) boardHint.textContent = '等候開局';
+  else if (room && isMemory && !canPlayMemory()) boardHint.textContent = '等待對手落子';
   else if (isMemory) boardHint.textContent = view.lastMove === null ? '點擊交叉點落子' : `最新一手 ${coordinate(view.lastMove)}`;
+  else if (room && view.phase === 'select' && !canSelectPoint()) boardHint.textContent = '等待對手選點';
+  else if (room && view.phase === 'bid' && biddingPlayer() === null) boardHint.textContent = '等待對手出價';
   else boardHint.textContent = view.phase === 'bid' ? '標號為本輪競價位置' : '選擇同一直線上的三點';
 }
 
 function biddingPlayer() {
   if (view.phase !== 'bid') return null;
+  if (room) {
+    const player = room.snapshot.player;
+    return view.submitted[player] ? null : player;
+  }
   if (opponent === 'computer') return view.submitted[0] ? null : 0;
   return view.submitted[view.selector] ? 1 - view.selector : view.selector;
 }
@@ -259,7 +307,7 @@ function renderPlayers(activePlayer) {
     let status;
     if (mode === 'point') {
       if (view.phase === 'bid' && view.submitted[player]) status = '已出價';
-      else if (opponent === 'computer' && player === 0 && !view.result) status = `${view.budgets[player]} 點`;
+      else if ((opponent === 'computer' && player === 0 || room?.snapshot?.player === player) && !view.result) status = `${view.budgets[player]} 點`;
     } else if (player === 0) status = '先手';
     if (status) {
       const value = document.createElement('span');
@@ -283,7 +331,16 @@ function renderStatus() {
     ? `第 ${view.moveCount + (result ? 0 : 1)} 手`
     : `第 ${view.round} 輪`;
 
-  if (result) {
+  if (room?.ended) {
+    title = '房間已結束';
+    detail = '離開房間後可開始新的對局。';
+  } else if (room?.disconnected) {
+    title = '正在重新連線';
+    detail = '連線恢復後會同步棋局進度。';
+  } else if (room && !room.snapshot?.joined) {
+    title = room.snapshot ? '等待對手加入' : '正在恢復房間';
+    detail = room.snapshot ? '將房間代碼傳給對手。' : '連線後會顯示棋局進度。';
+  } else if (result) {
     title = result.winner === null ? '和局' : `${playerName(result.winner)}獲勝`;
     if (isMemory) detail = result.winner === null ? '棋盤已下滿。' : '已標出獲勝連線。';
     else if (result.reason === 'blocked') detail = '棋盤上已沒有三個連續的空位。';
@@ -292,14 +349,15 @@ function renderStatus() {
   } else if (isMemory) {
     activePlayer = view.turn;
     title = `輪到${playerName(activePlayer)}落子`;
-    detail = canPlayMemory() ? '選擇一個空的交叉點。' : '電腦正在思考。';
+    detail = canPlayMemory() ? '選擇一個空的交叉點。' : room ? '等待對手落子。' : '電腦正在思考。';
   } else if (view.phase === 'select') {
     activePlayer = view.selector;
     title = `輪到${playerName(activePlayer)}選點`;
-    detail = canSelectPoint() ? '在同一直線上選三個連續的空位。' : '電腦正在選點。';
+    detail = canSelectPoint() ? '在同一直線上選三個連續的空位。' : room ? '等待對手選點。' : '電腦正在選點。';
   } else {
     activePlayer = biddingPlayer();
-    title = activePlayer === null ? '等待電腦出價' : `輪到${playerName(activePlayer)}分配點數`;
+    const rival = room ? '對手' : '電腦';
+    title = activePlayer === null ? `等待${rival}出價` : `輪到${playerName(activePlayer)}分配點數`;
     detail = activePlayer === null ? '雙方出價後才會結算。' : '每個位置至少出價 1 點。';
   }
   renderPlayers(activePlayer);
@@ -336,7 +394,7 @@ function renderBidSummary() {
   const valid = amounts.length === 3 && amounts.every((amount) => Number.isInteger(amount) && amount >= 1);
   const budget = view.budgets[player];
   const left = valid ? budget - amounts.reduce((sum, amount) => sum + amount, 0) : null;
-  byId('confirm-bid').disabled = left === null || left < 0;
+  byId('confirm-bid').disabled = left === null || left < 0 || roomActionBlocked();
   if (left === null) byId('bid-summary').textContent = '每格至少出價 1 點，僅能填整數。';
   else if (left < 0) byId('bid-summary').textContent = `超出點數 ${-left} 點。`;
   else byId('bid-summary').textContent = `可用 ${budget} 點，尚餘 ${left} 點。下輪保留 ${Math.floor(left / 2)} 點。`;
@@ -369,12 +427,12 @@ function renderPointActions() {
   if (!isPoint) return;
   const isSelecting = canSelectPoint();
   const player = biddingPlayer();
-  const isBidding = player !== null && (opponent === 'computer' || readyBidder === player);
+  const isBidding = player !== null && (opponent !== 'local' || readyBidder === player);
   byId('selection-actions').hidden = !isSelecting;
   bidForm.hidden = !isBidding;
   if (isSelecting) {
-    byId('confirm-trio').disabled = draft.length !== 3;
-    byId('clear-trio').disabled = draft.length === 0;
+    byId('confirm-trio').disabled = draft.length !== 3 || roomActionBlocked();
+    byId('clear-trio').disabled = draft.length === 0 || roomActionBlocked();
     byId('trio-coordinates').replaceChildren(...Array.from({ length: 3 }, (_, slot) => {
       const entry = document.createElement('span');
       entry.textContent = draft[slot] === undefined ? '—' : coordinate(draft[slot]);
@@ -395,7 +453,7 @@ function renderPointActions() {
 }
 
 function isComputerTurn() {
-  if (opponent === 'local' || view.result) return false;
+  if (opponent !== 'computer' || view.result) return false;
   if (mode === 'memory') return view.turn === 1;
   return view.phase === 'select' ? view.selector === 1 : view.phase === 'bid' && !view.submitted[1];
 }
@@ -414,10 +472,11 @@ function scheduleComputer() {
 function update() {
   const previousResult = view.result;
   view = readView();
-  legalTrios = mode === 'point' && view.phase === 'select' ? listPointTrios(game) : [];
+  legalTrios = mode === 'point' && canSelectPoint() ? listPointTrios(view) : [];
   renderBoard();
   renderStatus();
   renderPointActions();
+  renderRoom();
   scheduleComputer();
   const image = previousResult ? null : selectVictoryImage(opponent, view.result);
   if (image) {
@@ -426,6 +485,168 @@ function update() {
     victoryDialog.showModal();
   }
 }
+
+function rememberRoom(session) {
+  savedRoom = session;
+  writeRoomSession(session);
+}
+
+function renderRoom() {
+  const rematchButton = byId('room-rematch');
+  rematchButton.hidden = !room || !view.result || room.ended;
+  if (!room) return;
+  const snapshot = room.snapshot;
+  const player = snapshot?.player;
+  const requested = snapshot?.rematch[player];
+  rematchButton.disabled = Boolean(requested) || roomActionBlocked();
+  rematchButton.textContent = requested ? '等候對手同意' : '再玩一局';
+  byId('room-code').textContent = room.session.code;
+  byId('room-side').textContent = player === undefined ? '' : `你是${sideName(player)}`;
+  let message = room.error || copyMessage;
+  if (room.disconnected && !room.ended) message = '連線中斷，正在重試。';
+  else if (!message && snapshot?.rematch[1 - player]) message = '對手想再玩一局。';
+  const notice = byId('room-notice');
+  notice.hidden = !message;
+  if (notice.textContent !== message) notice.textContent = message;
+}
+
+function updateRoomGame() {
+  if (room.ended && savedRoom?.token === room.session.token) rememberRoom(null);
+  const nextView = room.snapshot?.view;
+  if (nextView && (nextView.phase !== view.phase || nextView.round !== view.round)) draft = [];
+  update();
+}
+
+function enterRoom(session, snapshot) {
+  clearTimeout(computerTimer);
+  const bidValues = bidForm.hidden ? [] : [...bidInputs.querySelectorAll('input')].map((input) => input.value);
+  offlineGame = { mode, opponent, game, draft, readyBidder, bidValues };
+  mode = session.mode;
+  opponent = 'room';
+  game = mode === 'memory' ? createMemoryGame() : createPointGame();
+  draft = [];
+  readyBidder = null;
+  copyMessage = '';
+  room = new RoomConnection(session, snapshot, updateRoomGame);
+  displayGame();
+  room.refresh();
+}
+
+function leaveRoom() {
+  room.close();
+  if (!room.ended) rememberRoom({ ...room.session, active: false });
+  room = null;
+  ({ mode, opponent, game, draft, readyBidder } = offlineGame);
+  displayGame();
+  if (offlineGame.bidValues.length) {
+    [...bidInputs.querySelectorAll('input')].forEach((input, index) => { input.value = offlineGame.bidValues[index]; });
+    renderBidSummary();
+  }
+  offlineGame = null;
+  byId('open-room').focus();
+}
+
+function setRoomEntryStatus(message, busy = false) {
+  enteringRoom = busy;
+  byId('create-room').disabled = busy;
+  byId('join-room').disabled = busy;
+  byId('close-room-entry').disabled = busy;
+  roomCodeInput.readOnly = busy;
+  const status = byId('room-entry-status');
+  status.hidden = !message;
+  status.textContent = message;
+}
+
+async function requestRoomEntry(code) {
+  if (enteringRoom) return;
+  setRoomEntryStatus(code ? '正在加入房間…' : '正在建立房間…', true);
+  const rejoining = code && savedRoom?.code === code;
+  let token;
+  try {
+    if (rejoining) token = savedRoom.token;
+    else if (code) {
+      if (joinAttempt?.code !== code) joinAttempt = { code, token: makeRoomToken() };
+      token = joinAttempt.token;
+    } else token = makeRoomToken();
+
+    const snapshot = rejoining ? await readRoom(savedRoom) : code ? await joinRoom(code, token) : await createRoom(mode, token);
+    const session = { code: snapshot.code, token, mode: snapshot.mode, active: true };
+    rememberRoom(session);
+    joinAttempt = null;
+    roomDialog.close();
+    enterRoom(session, snapshot);
+    byId('copy-room').focus();
+    setRoomEntryStatus('');
+  } catch (error) {
+    if (rejoining && (error.status === 404 || error.status === 401)) rememberRoom(null);
+    setRoomEntryStatus(error instanceof RoomError ? error.message : '連線失敗，請稍後再試。');
+  }
+}
+
+async function copyRoomCode() {
+  const current = room;
+  const code = current.session.code;
+  let copied = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(code);
+      copied = true;
+    } catch {
+      // Use the selection-based clipboard path when the browser denies access.
+    }
+  }
+  if (room !== current) return;
+  if (!copied) {
+    const selection = document.createElement('textarea');
+    selection.className = 'room-copy-selection';
+    selection.value = code;
+    selection.readOnly = true;
+    document.body.append(selection);
+    selection.select();
+    try {
+      copied = Boolean(document.execCommand?.('copy'));
+    } catch {
+      copied = false;
+    } finally {
+      selection.remove();
+      byId('copy-room').focus();
+    }
+  }
+  copyMessage = copied ? '已複製房間代碼。' : '請長按房間代碼手動複製。';
+  renderRoom();
+}
+
+function actInCurrentRoom(action) {
+  copyMessage = '';
+  return room.act({ ...action, match: room.snapshot.match });
+}
+
+byId('open-room').addEventListener('click', () => {
+  byId('room-mode').textContent = modes[mode].title;
+  roomCodeInput.value = savedRoom?.code ?? '';
+  setRoomEntryStatus('');
+  roomDialog.showModal();
+});
+roomDialog.addEventListener('cancel', (event) => {
+  if (enteringRoom) event.preventDefault();
+});
+byId('create-room').addEventListener('click', () => requestRoomEntry());
+byId('join-room-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const code = normalizeRoomCode(roomCodeInput.value);
+  if (code) requestRoomEntry(code);
+  else {
+    setRoomEntryStatus('請輸入 6 碼英文字母或數字。');
+    roomCodeInput.focus();
+  }
+});
+byId('copy-room').addEventListener('click', copyRoomCode);
+byId('leave-room').addEventListener('click', leaveRoom);
+byId('room-rematch').addEventListener('click', () => actInCurrentRoom({ type: 'rematch' }));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) room?.refresh();
+});
+window.addEventListener('online', () => room?.refresh());
 
 board.addEventListener('focusin', (event) => {
   const cell = event.target.closest('.intersection');
@@ -438,7 +659,8 @@ board.addEventListener('click', (event) => {
   const index = Number(cell.dataset.index);
   updateFocus(index);
   if (mode === 'memory') {
-    if (canPlayMemory() && playMemoryMove(game, index)) update();
+    if (room) actInCurrentRoom({ type: 'move', index, revision: room.snapshot.revision });
+    else if (canPlayMemory() && playMemoryMove(game, index)) update();
     return;
   }
   if (!canSelectPoint()) return;
@@ -453,7 +675,13 @@ byId('clear-trio').addEventListener('click', () => {
   renderPointActions();
   boardCells[focusIndex].focus();
 });
-byId('confirm-trio').addEventListener('click', () => {
+byId('confirm-trio').addEventListener('click', async () => {
+  if (room) {
+    if (await actInCurrentRoom({ type: 'select', indices: draft, revision: room.snapshot.revision }) && !bidForm.hidden) {
+      bidInputs.querySelector('input').focus();
+    }
+    return;
+  }
   if (!canSelectPoint() || !selectPointTrio(game, draft)) return;
   draft = [];
   readyBidder = null;
@@ -461,9 +689,16 @@ byId('confirm-trio').addEventListener('click', () => {
   if (!bidForm.hidden) bidInputs.querySelector('input').focus();
 });
 bidForm.addEventListener('input', renderBidSummary);
-bidForm.addEventListener('submit', (event) => {
+bidForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const player = biddingPlayer();
+  if (room) {
+    if (!bidForm.hidden && !byId('confirm-bid').disabled &&
+        await actInCurrentRoom({ type: 'bid', bids: bidAmounts(), round: view.round })) {
+      boardCells[focusIndex].focus();
+    }
+    return;
+  }
   if (bidForm.hidden || player === null || !submitPointBid(game, player, bidAmounts())) return;
   readyBidder = null;
   update();
@@ -512,3 +747,4 @@ for (const button of opponentButtons) {
 }
 
 startGame();
+if (savedRoom?.active) enterRoom(savedRoom);

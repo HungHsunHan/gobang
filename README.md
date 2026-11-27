@@ -1,6 +1,16 @@
 # 藏陣 · 五子棋
 
-**[開始下棋](https://gobang.zangzhen-games.workers.dev/)**。可以在同一台手機、平板或電腦輪流下，也可以和電腦對弈。
+**[開始下棋](https://gobang.zangzhen-games.workers.dev/)**。支援房間代碼連線、同機雙人和電腦對弈。
+
+## 兩支手機連線對戰
+
+1. 兩支手機都開啟遊戲網址。使用正式網址時，兩人可以在不同網路上玩。
+2. 第一位玩家選擇「盲五子棋」或「競價五子棋」，點「連線對戰」和「建立房間」，把六碼房間代碼傳給朋友。
+3. 第二位玩家點「連線對戰」，輸入房間代碼後點「加入房間」。建立者執深色，加入者執淺色。
+
+競價時，兩人各自在自己的手機輸入點數，雙方都送出後才會結算。對局結束後，兩人都點「再玩一局」就能在原房間開新局。
+
+重新整理原分頁會接回棋局。房間在最後一次建立、加入或對局操作的 24 小時後到期。
 
 ## 玩法
 
@@ -20,15 +30,15 @@
 
 ## 本機與家庭 Wi-Fi
 
-安裝 Node.js 22 以上。在本機執行 `npm start` 後，開啟 `http://127.0.0.1:8788/`。若想讓同一個家庭網路的裝置開啟遊戲，執行 `npm run start:lan` 並分享終端機顯示的網址。同機雙人仍在同一個瀏覽器輪流操作。
+安裝 Node.js 22 以上。在本機執行 `npm start` 後，開啟 `http://127.0.0.1:8788/`。若想在同一個家庭網路用兩支手機對戰，執行 `npm run start:lan`，兩支手機都開啟終端機顯示的網址，再依上述步驟建立及加入房間。本機房間會隨伺服器停止而清除。
 
 LAN 模式只綁定此電腦的私有 IPv4 位址，並接受同一子網路的連線。若 Wi-Fi 位址無法自動判定，可用 `npm run start:lan -- --host 192.168.1.20` 指定本機實際的 Wi-Fi 位址。兩種啟動方式都可加上 `--port` 參數。
 
-執行 `npm test` 可測試規則、電腦決策、本機服務與靜態部署設定。
+執行 `npm test` 可測試規則、電腦決策、本機服務、連線對戰與部署設定。
 
 ## Cloudflare 部署
 
-採用 Cloudflare Workers 靜態資源，直接提供 `public/`。Wrangler 設定中的 Worker 名稱為 `gobang`。 [靜態資源說明](https://developers.cloudflare.com/workers/static-assets/)
+`gobang` Worker 提供 `public/` 的靜態資源，房間 API 使用 SQLite 型 Durable Object 儲存棋局。Wrangler 會在部署時建立房間用的 Durable Object 類別。 [靜態資源說明](https://developers.cloudflare.com/workers/static-assets/) [Durable Objects 說明](https://developers.cloudflare.com/durable-objects/)
 
 ### Workers Builds
 

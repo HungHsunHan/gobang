@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101913">
-  <meta name="description" content="在盲五子棋記住棋子的歸屬，或在競價五子棋分配點數、爭取落子。支援單人對戰和同機雙人。">
+  <meta name="description" content="在盲五子棋記住棋子的歸屬，或在競價五子棋分配點數、爭取落子。支援電腦、同機雙人與房間代碼連線對戰。">
   <title>藏陣 · 五子棋</title>
   <link rel="icon" type="image/png" href="./favicon.png">
   <link rel="stylesheet" href="./style.css">
@@ -14,7 +14,10 @@
   <header class="topbar">
     <div class="shell topbar-inner">
       <span class="brand"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>藏陣</span>
-      <button id="help" type="button" class="button button-outline"><span class="help-icon" aria-hidden="true">?</span>玩法說明</button>
+      <div class="topbar-actions">
+        <button id="open-room" type="button" class="button button-primary">連線對戰</button>
+        <button id="help" type="button" class="button button-outline"><span class="help-icon" aria-hidden="true">?</span>玩法說明</button>
+      </div>
     </div>
   </header>
   <main class="shell">
@@ -23,11 +26,19 @@
         <h1 id="mode-title">盲五子棋</h1>
         <p id="mode-description">記住每一手的歸屬，在翻面前連成五子。</p>
       </div>
-      <div class="segmented modes" role="group" aria-label="選擇玩法">
+      <div id="mode-selector" class="segmented modes" role="group" aria-label="選擇玩法">
         <button type="button" data-mode="memory" aria-pressed="true"><span class="mode-icon memory-icon" aria-hidden="true"></span>盲五子棋</button>
         <button type="button" data-mode="point" aria-pressed="false"><span class="mode-icon point-icon" aria-hidden="true"></span>競價五子棋</button>
       </div>
     </div>
+    <section id="room-panel" class="panel room-panel" aria-label="連線房間" hidden>
+      <div class="room-identity"><span>房間代碼</span> <strong id="room-code"></strong><span id="room-side"></span></div>
+      <div class="room-controls">
+        <button id="copy-room" type="button" class="button button-outline">複製代碼</button>
+        <button id="leave-room" type="button" class="button button-outline">離開房間</button>
+      </div>
+      <p id="room-notice" role="status" hidden></p>
+    </section>
     <div class="game-layout">
       <section class="panel board-panel" aria-labelledby="board-title">
         <div class="board-header">
@@ -69,8 +80,9 @@
             </form>
             <div id="round-summary" hidden></div>
           </div>
+          <button id="room-rematch" type="button" class="button button-primary wide" hidden>再玩一局</button>
         </section>
-        <section class="panel settings-panel" aria-labelledby="settings-title">
+        <section id="settings-panel" class="panel settings-panel" aria-labelledby="settings-title">
           <h2 id="settings-title">對局設定</h2>
           <div class="segmented opponents" role="group" aria-label="選擇對手">
             <button type="button" data-opponent="computer" aria-pressed="true">對戰電腦</button>
@@ -81,6 +93,21 @@
       </aside>
     </div>
   </main>
+  <dialog id="room-dialog" aria-labelledby="room-title">
+    <div class="dialog-header"><h2 id="room-title">連線對戰</h2><form method="dialog"><button id="close-room-entry" class="button button-outline close" aria-label="關閉連線對戰">×</button></form></div>
+    <section class="room-create" aria-label="建立房間">
+      <p>建立<span id="room-mode"></span>房間，把代碼傳給對手。</p>
+      <button type="button" id="create-room" class="button button-primary wide">建立房間</button>
+    </section>
+    <form id="join-room-form">
+      <label for="join-room-code">房間代碼</label>
+      <div class="room-join-fields">
+        <input id="join-room-code" type="text" placeholder="輸入 6 碼" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+        <button type="submit" id="join-room" class="button button-outline">加入房間</button>
+      </div>
+    </form>
+    <p id="room-entry-status" role="status" hidden></p>
+  </dialog>
   <dialog id="help-dialog" aria-labelledby="help-title">
     <div class="dialog-header"><h2 id="help-title">玩法說明</h2><form method="dialog"><button class="button button-outline close" aria-label="關閉玩法說明">×</button></form></div>
     <div id="rules"></div>
