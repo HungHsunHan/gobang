@@ -14,10 +14,7 @@
   <header class="topbar">
     <div class="shell topbar-inner">
       <span class="brand"><span class="brand-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span>藏陣</span>
-      <div class="topbar-actions">
-        <button id="open-room" type="button" class="button button-primary">連線對戰</button>
-        <button id="help" type="button" class="button button-outline"><span class="help-icon" aria-hidden="true">?</span>玩法說明</button>
-      </div>
+      <button id="help" type="button" class="button button-outline"><span class="help-icon" aria-hidden="true">?</span>玩法說明</button>
     </div>
   </header>
   <main class="shell">
@@ -87,6 +84,7 @@
           <div class="segmented opponents" role="group" aria-label="選擇對手">
             <button type="button" data-opponent="computer" aria-pressed="true">對戰電腦</button>
             <button type="button" data-opponent="local" aria-pressed="false">同機雙人</button>
+            <button type="button" id="open-room" aria-haspopup="dialog">連線對戰</button>
           </div>
           <button type="button" id="restart" class="button button-outline wide"><span class="restart-icon" aria-hidden="true">↻</span>重新開局</button>
         </section>
@@ -102,7 +100,7 @@
     <form id="join-room-form">
       <label for="join-room-code">房間代碼</label>
       <div class="room-join-fields">
-        <input id="join-room-code" type="text" placeholder="輸入 6 碼" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+        <input id="join-room-code" type="text" inputmode="numeric" placeholder="輸入 4 碼數字" autocomplete="off" spellcheck="false" required>
         <button type="submit" id="join-room" class="button button-outline">加入房間</button>
       </div>
     </form>

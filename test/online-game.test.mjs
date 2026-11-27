@@ -34,7 +34,7 @@ test('two HTTP clients share a blind game and can rematch after a win', async (t
   const guest = connect();
   const outsider = connect();
   let state = await host('', 201, { mode: 'memory' });
-  assert.match(state.code, /^[A-Z2-9]{6}$/);
+  assert.match(state.code, /^[0-9]{4}$/);
   assert.equal(state.player, 0);
   assert.equal(state.joined, false);
   assert.equal(Object.hasOwn(state, 'token'), false);

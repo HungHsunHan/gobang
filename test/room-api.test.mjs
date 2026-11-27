@@ -80,7 +80,7 @@ test('the local server can send a rejection before discarding an oversized chunk
   assert.match((await response.json()).error, /過大/);
 });
 
-test('room code paths are canonicalized before reaching storage', async () => {
+test('legacy room code paths are canonicalized before reaching storage', async () => {
   const response = await handleRoomRequest(request('/api/rooms/abc234'), (input) => {
     assert.deepEqual(input, { operation: 'get', code: 'ABC234', token, body: null });
     return { status: 200, body: { code: input.code } };
@@ -88,18 +88,30 @@ test('room code paths are canonicalized before reaching storage', async () => {
   assert.deepEqual(await response.json(), { code: 'ABC234' });
 });
 
-test('room creation retries a code collision and restricts codes to readable characters', async () => {
-  let attempts = 0;
+test('four-digit room code paths preserve leading zeros', async () => {
+  const response = await handleRoomRequest(request('/api/rooms/0077/join', { method: 'POST', body: '{}' }), (input) => {
+    assert.deepEqual(input, { operation: 'join', code: '0077', token, body: {} });
+    return { status: 200, body: { code: input.code } };
+  });
+  assert.deepEqual(await response.json(), { code: '0077' });
+});
+
+test('room creation can generate 0000 and retries collisions with another four-digit code', async (t) => {
+  const samples = [60_000, 0, 59_999];
+  t.mock.method(crypto, 'getRandomValues', (array) => {
+    array[0] = samples.shift();
+    return array;
+  });
+  const codes = [];
   const response = await handleRoomRequest(request('/api/rooms', {
     method: 'POST', body: '{"mode":"memory"}',
   }), (input) => {
     assert.equal(input.operation, 'create');
-    assert.match(input.code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
-    attempts++;
-    if (attempts === 1) return { status: 409, body: {} };
+    codes.push(input.code);
+    if (codes.length === 1) return { status: 409, body: {} };
     return { status: 201, body: { code: input.code }, room: { private: token } };
   });
-  assert.equal(attempts, 2);
+  assert.deepEqual(codes, ['0000', '9999']);
   assert.equal(response.status, 201);
-  assert.deepEqual(Object.keys(await response.json()), ['code']);
+  assert.deepEqual(await response.json(), { code: '9999' });
 });

@@ -1,10 +1,10 @@
 const STORAGE_KEY = 'gobang-room';
-const ROOM_CODE = /^[A-Z0-9]{6}$/;
+const ROOM_CODE = /^[0-9]{4}$/;
+const LEGACY_ROOM_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
 const TOKEN = /^[a-f0-9]{32}$/;
 
-export function normalizeRoomCode(value) {
-  const code = value.trim().toUpperCase();
-  return ROOM_CODE.test(code) ? code : '';
+export function isJoinCode(code, savedCode) {
+  return ROOM_CODE.test(code) || (code === savedCode && LEGACY_ROOM_CODE.test(code));
 }
 
 export function makeRoomToken() {
@@ -15,7 +15,7 @@ export function makeRoomToken() {
 export function readRoomSession() {
   try {
     const session = JSON.parse(sessionStorage.getItem(STORAGE_KEY));
-    if (session && ROOM_CODE.test(session.code) && TOKEN.test(session.token) &&
+    if (session && (ROOM_CODE.test(session.code) || LEGACY_ROOM_CODE.test(session.code)) && TOKEN.test(session.token) &&
         (session.mode === 'memory' || session.mode === 'point')) {
       return session;
     }

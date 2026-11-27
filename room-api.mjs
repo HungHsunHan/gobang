@@ -1,5 +1,7 @@
 const ROOM_PATH = '/api/rooms';
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const LEGACY_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CODE_COUNT = 10_000;
+const UNIFORM_SAMPLE_LIMIT = Math.floor(2 ** 16 / CODE_COUNT) * CODE_COUNT;
 const MAX_BODY_BYTES = 1024;
 const CODE_ATTEMPTS = 5;
 
@@ -10,10 +12,10 @@ export function isRoomPath(pathname) {
 function routeRoom(pathname) {
   if (!isRoomPath(pathname)) return null;
   if (pathname === ROOM_PATH) return { operation: 'create', method: 'POST' };
-  const match = /^\/([a-zA-Z0-9]{6})(?:\/(join|actions))?$/.exec(pathname.slice(ROOM_PATH.length));
+  const match = /^\/([0-9]{4}|[a-zA-Z0-9]{6})(?:\/(join|actions))?$/.exec(pathname.slice(ROOM_PATH.length));
   if (!match) return null;
   const code = match[1].toUpperCase();
-  if (![...code].every((character) => CODE_ALPHABET.includes(character))) return null;
+  if (code.length === 6 && ![...code].every((character) => LEGACY_CODE_ALPHABET.includes(character))) return null;
   if (match[2] === 'join') return { operation: 'join', method: 'POST', code };
   if (match[2] === 'actions') return { operation: 'action', method: 'POST', code };
   return { operation: 'get', method: 'GET', code };
@@ -65,8 +67,12 @@ async function readBody(request) {
 }
 
 function generateCode() {
-  const random = crypto.getRandomValues(new Uint8Array(6));
-  return Array.from(random, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join('');
+  const random = new Uint16Array(1);
+  // Each remainder must occur the same number of times in the accepted range.
+  do {
+    crypto.getRandomValues(random);
+  } while (random[0] >= UNIFORM_SAMPLE_LIMIT);
+  return String(random[0] % CODE_COUNT).padStart(4, '0');
 }
 
 export async function handleRoomRequest(request, dispatch) {

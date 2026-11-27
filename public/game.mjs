@@ -10,9 +10,9 @@ import {
 } from './points.mjs';
 import {
   createRoom,
+  isJoinCode,
   joinRoom,
   makeRoomToken,
-  normalizeRoomCode,
   readRoom,
   readRoomSession,
   RoomConnection,
@@ -109,7 +109,6 @@ function displayGame() {
   byId('mode-description').textContent = modes[mode].description;
   byId('mode-selector').hidden = Boolean(room);
   byId('settings-panel').hidden = Boolean(room);
-  byId('open-room').hidden = Boolean(room);
   byId('room-panel').hidden = !room;
   for (const button of modeButtons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
   for (const button of opponentButtons) button.setAttribute('aria-pressed', String(button.dataset.opponent === opponent));
@@ -633,10 +632,10 @@ roomDialog.addEventListener('cancel', (event) => {
 byId('create-room').addEventListener('click', () => requestRoomEntry());
 byId('join-room-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  const code = normalizeRoomCode(roomCodeInput.value);
-  if (code) requestRoomEntry(code);
+  const code = roomCodeInput.value.trim();
+  if (isJoinCode(code, savedRoom?.code)) requestRoomEntry(code);
   else {
-    setRoomEntryStatus('請輸入 6 碼英文字母或數字。');
+    setRoomEntryStatus('請輸入 4 碼數字（0–9）。');
     roomCodeInput.focus();
   }
 });
