@@ -137,18 +137,45 @@ test('a board with vacancies but no remaining legal trio ends in a draw', () => 
   assert.equal(choosePointTrio(game), null);
 });
 
-test('the beginner computer selects a central trio over extending a three-stone line', () => {
+test('the computer selects two intersections that together complete a five', () => {
   const game = createPointGame(7);
   playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
   playRound(game, [42, 43, 44], [1, 1, 1], [3, 3, 3]);
-  assert.equal(choosePointTrio(game).includes(24), true);
+  assert.deepEqual(choosePointTrio(game), [3, 4, 5]);
 });
 
-test('the beginner computer keeps bidding modest on a three-stone line', () => {
+test('the computer concentrates its bid on both intersections needed to win', () => {
   const game = createPointGame(7);
   playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
   assert.equal(selectPointTrio(game, [3, 4, 5]), true);
-  assert.deepEqual(choosePointBid(game, 0).toSorted(), [2, 3, 3]);
+  const bid = choosePointBid(game, 0);
+  assert.equal(submitPointBid(game, 0, bid), true);
+  assert.equal(submitPointBid(game, 1, [4, 4, 1]), true);
+  assert.equal(getPointView(game).result?.winner, 0);
+});
+
+test('the computer avoids offering an opponent their winning intersection', () => {
+  const game = createPointGame(7);
+  for (const point of [21, 22, 23, 24]) game.board[point] = 1;
+  assert.equal(choosePointTrio(game).includes(25), false);
+});
+
+test('the computer denies an opponent a five that needs two intersections', () => {
+  const game = createPointGame(7);
+  for (const point of [0, 1, 2]) game.board[point] = 1;
+  game.selector = 1;
+  assert.equal(selectPointTrio(game, [3, 4, 5]), true);
+  assert.equal(submitPointBid(game, 0, choosePointBid(game, 0)), true);
+  assert.equal(submitPointBid(game, 1, [4, 4, 1]), true);
+  assert.equal(getPointView(game).result, null);
+});
+
+test('the computer saves a point for later when no line is threatened', () => {
+  const game = createPointGame();
+  assert.equal(selectPointTrio(game, [111, 112, 113]), true);
+  assert.equal(submitPointBid(game, 0, [3, 3, 3]), true);
+  assert.equal(submitPointBid(game, 1, choosePointBid(game, 1)), true);
+  assert.ok(getPointView(game).budgets[1] > 10);
 });
 
 test('computer selects an immediate winning opportunity and prioritizes its bid', () => {
@@ -159,9 +186,27 @@ test('computer selects an immediate winning opportunity and prioritizes its bid'
   assert.equal(trio.includes(4), true);
   assert.equal(selectPointTrio(game, trio), true);
   const computerBid = choosePointBid(game, 0);
-  assert.equal(computerBid[trio.indexOf(4)], 4);
-  assert.equal(submitPointBid(game, 1, [1, 1, 1]), true);
+  assert.ok(computerBid[trio.indexOf(4)] > 5);
+  const rivalBid = trio.map((point) => point === 4 ? 5 : 1);
+  assert.equal(submitPointBid(game, 1, rivalBid), true);
   assert.deepEqual(choosePointBid(game, 0), computerBid);
   assert.equal(submitPointBid(game, 0, computerBid), true);
   assert.equal(getPointView(game).result.winner, 0);
+});
+
+test('private rival bids and point balances do not influence the computer', () => {
+  const game = createPointGame(7);
+  playRound(game, [21, 22, 23], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [3, 10, 17], [3, 3, 3], [1, 1, 1]);
+  const copy = structuredClone(game);
+  copy.budgets[1] = 10;
+  const trio = choosePointTrio(game);
+  assert.deepEqual(choosePointTrio(copy), trio);
+  assert.equal(selectPointTrio(game, trio), true);
+  assert.equal(selectPointTrio(copy, trio), true);
+  const before = choosePointBid(game, 0);
+  assert.equal(submitPointBid(game, 1, [6, 1, 1]), true);
+  assert.equal(submitPointBid(copy, 1, [1, 1, 6]), true);
+  assert.deepEqual(choosePointBid(game, 0), before);
+  assert.deepEqual(choosePointBid(copy, 0), before);
 });

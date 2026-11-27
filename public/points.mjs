@@ -160,25 +160,227 @@ export function getPointView(game) {
   };
 }
 
-function makesPointLine({ board, size }, index, player) {
-  return DIRECTIONS.some((direction) => scanRun(board, size, index, player, direction).length >= WIN_LENGTH);
+const ALL_SLOTS = 0b111;
+const SLOT_COUNTS = [0, 1, 1, 2, 1, 2, 2, 3];
+const SCORE_TARGETS = [1, 2, 3, 4, 5, 6, 7];
+const WINDOW_VALUES = [0, 1, 5, 22, 200];
+const WIN_SCORE = 10_000;
+const LOSS_SCORE = -12_000;
+const TRIO_SHORTLIST_SIZE = 10;
+const CARRY_VALUE = 65;
+
+function indexPotentialLines({ board, size }, triosAt) {
+  const linesAt = Array.from({ length: board.length }, () => []);
+  for (let index = 0; index < board.length; index++) {
+    const row = Math.floor(index / size);
+    const col = index % size;
+    for (const [dr, dc] of DIRECTIONS) {
+      if (at(board, size, row + (WIN_LENGTH - 1) * dr, col + (WIN_LENGTH - 1) * dc) === undefined) continue;
+
+      const line = { owner: null, stones: 0, empty: [] };
+      for (let offset = 0; offset < WIN_LENGTH; offset++) {
+        const point = index + offset * (dr * size + dc);
+        const stone = board[point];
+        if (stone === null) {
+          line.empty.push(point);
+        } else {
+          if (line.owner !== null && line.owner !== stone) break;
+          line.owner = stone;
+          line.stones++;
+        }
+      }
+      // Once a vacancy is outside every legal trio, it can never be filled.
+      if (line.empty.length + line.stones !== WIN_LENGTH || line.empty.some((point) => triosAt[point].length === 0)) continue;
+      for (const point of line.empty) linesAt[point].push(line);
+    }
+  }
+  return linesAt;
 }
 
-function centerValue(index, size) {
-  const center = (size - 1) / 2;
-  return size - Math.abs(Math.floor(index / size) - center) - Math.abs(index % size - center);
+function indexPlayableTrios(position) {
+  const triosAt = Array.from({ length: position.board.length }, () => []);
+  const trios = [...legalTrios(position)];
+  for (const trio of trios) {
+    for (const point of trio) triosAt[point].push(trio);
+  }
+  return { trios, triosAt };
+}
+
+function scoreTrioOutcomes({ position, linesAt, trios, triosAt }, trio, player) {
+  const { board, size, selector } = position;
+  const affected = new Map();
+  trio.forEach((point, slot) => {
+    for (const line of linesAt[point]) {
+      affected.set(line, (affected.get(line) ?? 0) | (1 << slot));
+    }
+  });
+
+  const selected = new Set(trio);
+  const survives = (next) => next.every((point) => !selected.has(point));
+  const blocked = !trios.some(survives);
+  const playableAfter = new Map(trio.map((point) => [point, true]));
+
+  const changes = [...affected].map(([line, slots]) => ({
+    owner: line.owner,
+    stones: line.stones,
+    slots,
+    playable: line.empty.every((point) => {
+      if (!playableAfter.has(point)) playableAfter.set(point, triosAt[point].some(survives));
+      return playableAfter.get(point);
+    }),
+  }));
+
+  // Bit n marks whether the computer obtains slot n. Score all eight settlements.
+  const scores = Array(ALL_SLOTS + 1).fill(0);
+  for (let owned = 0; owned <= ALL_SLOTS; owned++) {
+    let potentiallyFinished = false;
+    for (const { owner, stones, slots, playable } of changes) {
+      const ownSlots = owned & slots;
+      if (owner !== null) scores[owned] -= (owner === player ? 1 : -1) * WINDOW_VALUES[stones];
+      if (!playable || (ownSlots !== 0 && ownSlots !== slots)) continue;
+
+      const newOwner = ownSlots ? player : 1 - player;
+      if (owner !== null && owner !== newOwner) continue;
+      const newStones = stones + SLOT_COUNTS[slots];
+      if (newStones === WIN_LENGTH) {
+        potentiallyFinished = true;
+      } else {
+        // The player selecting next has the first chance to offer a winning point.
+        const tempo = newStones === WIN_LENGTH - 1 && newOwner !== selector ? 1.35 : 1;
+        scores[owned] += (newOwner === player ? 1 : -1) * WINDOW_VALUES[newStones] * tempo;
+      }
+    }
+    if (potentiallyFinished) {
+      trio.forEach((point, slot) => { board[point] = owned & (1 << slot) ? player : 1 - player; });
+      const lines = newlyFormedLines({ board, size, trio });
+      trio.forEach((point) => { board[point] = null; });
+      const margin = lines[player].length - lines[1 - player].length;
+      scores[owned] = margin > 0 ? WIN_SCORE : margin < 0 ? LOSS_SCORE : 0;
+    } else if (blocked) {
+      scores[owned] = 0;
+    }
+  }
+  return scores;
+}
+
+function focusedBids(budgets) {
+  const choices = new Map();
+  for (const budget of budgets) {
+    for (let target = 1; target <= ALL_SLOTS; target++) {
+      const count = SLOT_COUNTS[target];
+      const extra = budget - 3;
+      for (let offset = 0; offset < count; offset++) {
+        const bid = [1, 1, 1];
+        let position = offset;
+        for (let slot = 0; slot < bid.length; slot++) {
+          if (!(target & (1 << slot))) continue;
+          bid[slot] += Math.floor(extra / count) + Number(position < extra % count);
+          position = (position + 1) % count;
+        }
+        choices.set(`${target}:${bid}`, { bid, target });
+      }
+    }
+  }
+  return [...choices.values()];
+}
+
+function legalBids(budget) {
+  const bids = [];
+  for (let first = 1; first <= budget - 2; first++) {
+    for (let second = 1; second <= budget - first - 1; second++) {
+      for (let third = 1; third <= budget - first - second; third++) {
+        bids.push([first, second, third]);
+      }
+    }
+  }
+  return bids;
+}
+
+function budgetForecast(round) {
+  // Rival spending is private. Only the rules and public round number set this upper bound.
+  let upper = ROUND_POINTS;
+  for (let turn = 1; turn < round; turn++) {
+    const next = ROUND_POINTS + Math.floor((upper - 3) / 2);
+    if (next === upper) break;
+    upper = next;
+  }
+  return upper;
+}
+
+function bidOutcomes(bids, rivalBids, budget, winsTies) {
+  const ownThreshold = winsTies ? 0 : 1;
+  return bids.map((bid) => ({
+    bid,
+    carry: Math.floor((budget - bid[0] - bid[1] - bid[2]) / 2),
+    ownership: rivalBids.map(({ bid: rival }) =>
+      Number(bid[0] >= rival[0] + ownThreshold)
+      | (Number(bid[1] >= rival[1] + ownThreshold) << 1)
+      | (Number(bid[2] >= rival[2] + ownThreshold) << 2)),
+  }));
+}
+
+function bestBid(outcomes, rivalBids, scores) {
+  const stakes = SCORE_TARGETS.map((target) =>
+    Math.max(0, scores[ALL_SLOTS] - scores[ALL_SLOTS ^ target]) / SLOT_COUNTS[target]);
+  const highestStake = Math.max(1, ...stakes);
+  // Allow for balanced and aggressive rivals, with more weight on contests that matter to them.
+  const weights = rivalBids.map(({ target }) => 1 + 3 * stakes[target - 1] / highestStake);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let choice = null;
+  let score = -Infinity;
+
+  for (const { bid, carry, ownership } of outcomes) {
+    let expected = 0;
+    let worst = Infinity;
+    for (let index = 0; index < ownership.length; index++) {
+      const value = scores[ownership[index]];
+      expected += value * weights[index];
+      worst = Math.min(worst, value);
+    }
+    const value = 0.9 * expected / totalWeight + 0.1 * worst + CARRY_VALUE * carry;
+    if (value > score) {
+      score = value;
+      choice = bid;
+    }
+  }
+  return { bid: choice, score };
+}
+
+function createPointAnalysis(game, player) {
+  const position = { board: [...game.board], size: game.size, selector: game.selector };
+  const { trios, triosAt } = indexPlayableTrios(position);
+  const upper = budgetForecast(game.round);
+  return {
+    position,
+    trios,
+    triosAt,
+    linesAt: indexPotentialLines(position, triosAt),
+    budget: game.budgets[player],
+    rivalBids: focusedBids([6, 8, 9, ROUND_POINTS, Math.min(11, upper), Math.min(12, upper), upper]),
+    winsTies: player !== game.selector,
+  };
 }
 
 export function choosePointTrio(game) {
   if (game.phase !== 'select') return null;
-  const winningPoints = game.board.map((point, index) => point === null && makesPointLine(game, index, game.selector));
-  const winPriority = 3 * game.size;
+  const analysis = createPointAnalysis(game, game.selector);
+  const { trios, budget, rivalBids, winsTies } = analysis;
+  // Preview every legal trio with representative bids, then check all bids for the finalists.
+  const samples = focusedBids([budget - 4, budget - 2, budget]).map(({ bid }) => bid);
+  const sampledOutcomes = bidOutcomes(samples, rivalBids, budget, winsTies);
+  const candidates = [];
+  for (const trio of trios) {
+    const scores = scoreTrioOutcomes(analysis, trio, game.selector);
+    const { score } = bestBid(sampledOutcomes, rivalBids, scores);
+    candidates.push({ trio, scores, score });
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  const allOutcomes = bidOutcomes(legalBids(budget), rivalBids, budget, winsTies);
   let choice = null;
   let best = -Infinity;
-  for (const trio of legalTrios(game)) {
-    const canWin = trio.some((index) => winningPoints[index]);
-    const center = trio.reduce((sum, index) => sum + centerValue(index, game.size), 0);
-    const score = Number(canWin) * winPriority + center;
+  for (const { trio, scores } of candidates.slice(0, TRIO_SHORTLIST_SIZE)) {
+    const { score } = bestBid(allOutcomes, rivalBids, scores);
     if (score > best) {
       choice = trio;
       best = score;
@@ -189,14 +391,9 @@ export function choosePointTrio(game) {
 
 export function choosePointBid(game, player) {
   if (game.phase !== 'bid' || (player !== 0 && player !== 1) || game.bids[player] !== null) return null;
-  let target = game.trio.findIndex((point) => makesPointLine(game, point, player));
-  if (target === -1) target = game.trio.findIndex((point) => makesPointLine(game, point, 1 - player));
-  if (target === -1) {
-    const bid = [3, 3, 3];
-    bid[(game.round - 1) % bid.length] = 2;
-    return bid;
-  }
-  const bid = [2, 2, 2];
-  bid[target] = 4;
-  return bid;
+  const analysis = createPointAnalysis(game, player);
+  const { budget, rivalBids, winsTies } = analysis;
+  const scores = scoreTrioOutcomes(analysis, game.trio, player);
+  const outcomes = bidOutcomes(legalBids(budget), rivalBids, budget, winsTies);
+  return bestBid(outcomes, rivalBids, scores).bid;
 }
