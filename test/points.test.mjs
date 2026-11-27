@@ -4,6 +4,7 @@ import {
   choosePointBid,
   choosePointTrio,
   createPointGame,
+  getPointBidLimits,
   getPointView,
   listPointTrios,
   selectPointTrio,
@@ -62,6 +63,22 @@ test('players secretly allocate whole points within budget and can only submit o
   assert.equal(submitPointBid(game, 1, [1, 1, 1]), false);
   assert.equal(submitPointBid(game, 0, [4, 2, 1]), true);
   assert.equal(Object.hasOwn(getPointView(game).lastRound, 'bids'), false);
+});
+
+test('bid controls stop all increases at the shared budget and preserve the one-point minimum', () => {
+  assert.deepEqual(getPointBidLimits(10, [8, 1, 1]), {
+    left: 0,
+    canIncrease: false,
+    canDecrease: [true, false, false],
+  });
+});
+
+test('bid controls allow any bid to increase when a point is freed from a carried budget', () => {
+  assert.deepEqual(getPointBidLimits(13, [9, 2, 1]), {
+    left: 1,
+    canIncrease: true,
+    canDecrease: [true, true, false],
+  });
 });
 
 test('each spot resolves on its own and ties favor the player who did not select it', () => {

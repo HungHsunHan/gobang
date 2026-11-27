@@ -64,6 +64,13 @@
             <div class="board-legend" id="board-legend"><span class="legend-token" aria-hidden="true"></span>蓋牌棋子</div>
             <div id="board-hint">點擊交叉點落子</div>
           </div>
+          <form id="bid-form" aria-label="分配競價點數" hidden>
+            <div class="bid-inputs" id="bid-inputs"></div>
+            <div class="bid-footer">
+              <p class="bid-summary" id="bid-summary" aria-live="polite"></p>
+              <button type="submit" id="confirm-bid" class="button button-primary">送出競價</button>
+            </div>
+          </form>
         </section>
       </div>
       <aside aria-label="對局控制">
@@ -81,11 +88,6 @@
                 <button type="button" id="confirm-trio" class="button button-primary">確認三點</button>
               </div>
             </div>
-            <form id="bid-form" hidden>
-              <div class="bid-inputs" id="bid-inputs"></div>
-              <p class="bid-summary" id="bid-summary" aria-live="polite"></p>
-              <button type="submit" id="confirm-bid" class="button button-primary wide">送出競價</button>
-            </form>
             <div id="round-summary" hidden></div>
           </div>
           <button id="room-rematch" type="button" class="button button-primary wide" hidden>再玩一局</button>

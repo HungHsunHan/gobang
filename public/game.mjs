@@ -3,6 +3,7 @@ import {
   choosePointBid,
   choosePointTrio,
   createPointGame,
+  getPointBidLimits,
   getPointView,
   listPointTrios,
   selectPointTrio,
@@ -46,6 +47,7 @@ const modes = {
 const columns = 'ABCDEFGHIJKLMNO';
 const byId = (id) => document.getElementById(id);
 const board = byId('board');
+const boardPanel = board.closest('.board-panel');
 const boardFrame = byId('board-frame');
 const boardLegend = byId('board-legend');
 const legendToken = boardLegend.firstElementChild;
@@ -58,6 +60,8 @@ const victoryDialog = byId('victory-dialog');
 const victoryImage = byId('victory-image');
 const bidForm = byId('bid-form');
 const bidInputs = byId('bid-inputs');
+const confirmBid = byId('confirm-bid');
+const confirmTrio = byId('confirm-trio');
 const roomDialog = byId('room-dialog');
 const roomCodeInput = byId('join-room-code');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
@@ -73,6 +77,9 @@ let legalTrios = [];
 let draft = [];
 let readyBidder = null;
 let bidKey = '';
+let bidAmounts = [];
+let bidSteppers = [];
+let revealBidPending = false;
 let computerTimer;
 let pendingSettings;
 let offlineGame;
@@ -103,7 +110,7 @@ function readView() {
 
 function displayGame() {
   view = readView();
-  bidKey = '';
+  clearBidForm();
   buildBoard();
   byId('mode-title').textContent = modes[mode].title;
   byId('mode-description').textContent = modes[mode].description;
@@ -383,54 +390,122 @@ function renderRoundSummary() {
   summary.replaceChildren(heading, list);
 }
 
-function bidAmounts() {
-  return [...bidInputs.querySelectorAll('input')].map((input) => input.valueAsNumber);
+function renderBidSummary(player) {
+  const budget = view.budgets[player];
+  const { left, canIncrease, canDecrease } = getPointBidLimits(budget, bidAmounts);
+  const blocked = roomActionBlocked();
+  for (const [slot, { value, decrease, increase }] of bidSteppers.entries()) {
+    const amount = String(bidAmounts[slot]);
+    if (value.value !== amount) value.value = amount;
+    decrease.setAttribute('aria-disabled', String(blocked || !canDecrease[slot]));
+    increase.setAttribute('aria-disabled', String(blocked || !canIncrease));
+  }
+  confirmBid.disabled = blocked;
+  const summary = byId('bid-summary');
+  const message = `可用 ${budget} 點，尚餘 ${left} 點。下輪保留 ${Math.floor(left / 2)} 點。`;
+  if (summary.textContent !== message) summary.textContent = message;
 }
 
-function renderBidSummary() {
-  const player = biddingPlayer();
-  const amounts = bidAmounts();
-  const valid = amounts.length === 3 && amounts.every((amount) => Number.isInteger(amount) && amount >= 1);
-  const budget = view.budgets[player];
-  const left = valid ? budget - amounts.reduce((sum, amount) => sum + amount, 0) : null;
-  byId('confirm-bid').disabled = left === null || left < 0 || roomActionBlocked();
-  if (left === null) byId('bid-summary').textContent = '每格至少出價 1 點，僅能填整數。';
-  else if (left < 0) byId('bid-summary').textContent = `超出點數 ${-left} 點。`;
-  else byId('bid-summary').textContent = `可用 ${budget} 點，尚餘 ${left} 點。下輪保留 ${Math.floor(left / 2)} 點。`;
+function bidStepButton(slot, point, step) {
+  const increase = step > 0;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'button button-outline';
+  button.textContent = increase ? '+' : '−';
+  button.setAttribute('aria-label', `${increase ? '增加' : '減少'} ${point} 出價`);
+  button.addEventListener('click', () => {
+    if (bidForm.hidden || button.getAttribute('aria-disabled') === 'true') return;
+    bidAmounts[slot] += step;
+    renderBidSummary(biddingPlayer());
+  });
+  return button;
+}
+
+function createBidStepper(index, slot) {
+  const point = coordinate(index);
+  const group = document.createElement('div');
+  group.className = 'bid-stepper';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', `${point} 出價`);
+
+  const heading = document.createElement('div');
+  heading.className = 'bid-stepper-heading';
+  const label = document.createElement('span');
+  label.textContent = `${slot + 1} · ${point}`;
+  const value = document.createElement('output');
+  value.className = 'bid-value';
+  value.setAttribute('aria-label', `${point} 出價點數`);
+  heading.append(label, value);
+
+  const controls = document.createElement('div');
+  controls.className = 'bid-stepper-controls';
+  const decrease = bidStepButton(slot, point, -1);
+  const increase = bidStepButton(slot, point, 1);
+  controls.append(decrease, increase);
+  group.append(heading, controls);
+  return { group, value, decrease, increase };
+}
+
+function clearBidForm() {
+  if (!bidKey) return;
+  bidKey = '';
+  bidAmounts = [];
+  bidSteppers = [];
+  revealBidPending = false;
+  bidInputs.replaceChildren();
+  byId('bid-summary').textContent = '';
+}
+
+function dialogOpen() {
+  return Boolean(document.querySelector('dialog[open]'));
+}
+
+function revealBidPanel() {
+  if (!revealBidPending || bidForm.hidden || document.hidden || dialogOpen()) return;
+  revealBidPending = false;
+  const { top, bottom } = boardPanel.getBoundingClientRect();
+  if (top < 0 || bottom > (window.visualViewport?.height ?? window.innerHeight)) {
+    boardPanel.scrollIntoView({ block: 'start' });
+  }
+}
+
+function focusBidControls() {
+  if (!bidForm.hidden && !dialogOpen()) bidSteppers[0].increase.focus({ preventScroll: true });
+}
+
+function focusBoardAfterBid() {
+  const active = document.activeElement;
+  if (!dialogOpen() && (active === document.body || bidForm.contains(active))) {
+    boardCells[focusIndex].focus({ preventScroll: true });
+  }
 }
 
 function renderBidForm(player) {
   const key = `${view.round}:${player}`;
   if (key !== bidKey) {
     bidKey = key;
-    bidInputs.replaceChildren(...view.trio.map((index, slot) => {
-      const label = document.createElement('label');
-      label.textContent = `${slot + 1} · ${coordinate(index)}`;
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.inputMode = 'numeric';
-      input.min = '1';
-      input.max = String(view.budgets[player] - 2);
-      input.required = true;
-      input.value = '1';
-      label.append(input);
-      return label;
-    }));
+    bidAmounts = view.trio.map(() => 1);
+    bidSteppers = view.trio.map(createBidStepper);
+    bidInputs.replaceChildren(...bidSteppers.map(({ group }) => group));
+    revealBidPending = true;
   }
-  renderBidSummary();
+  renderBidSummary(player);
+  revealBidPanel();
 }
 
 function renderPointActions() {
   const isPoint = mode === 'point';
+  const player = isPoint ? biddingPlayer() : null;
+  const isBidding = player !== null && (opponent !== 'local' || readyBidder === player);
   byId('point-actions').hidden = !isPoint;
+  bidForm.hidden = !isBidding;
+  boardPanel.classList.toggle('bidding', isBidding);
+  if (!isBidding) clearBidForm();
   if (!isPoint) return;
   const isSelecting = canSelectPoint();
-  const player = biddingPlayer();
-  const isBidding = player !== null && (opponent !== 'local' || readyBidder === player);
   byId('selection-actions').hidden = !isSelecting;
-  bidForm.hidden = !isBidding;
   if (isSelecting) {
-    byId('confirm-trio').disabled = draft.length !== 3 || roomActionBlocked();
+    confirmTrio.disabled = draft.length !== 3 || roomActionBlocked();
     byId('clear-trio').disabled = draft.length === 0 || roomActionBlocked();
     byId('trio-coordinates').replaceChildren(...Array.from({ length: 3 }, (_, slot) => {
       const entry = document.createElement('span');
@@ -439,11 +514,6 @@ function renderPointActions() {
     }));
   }
   if (isBidding) renderBidForm(player);
-  else {
-    bidInputs.replaceChildren();
-    byId('bid-summary').textContent = '';
-    bidKey = '';
-  }
   renderRoundSummary();
   if (player !== null && opponent === 'local' && readyBidder !== player && !handoffDialog.open) {
     byId('handoff-detail').textContent = `${playerName(player)}準備好後再繼續。請讓另一位玩家暫時移開視線。`;
@@ -518,7 +588,7 @@ function updateRoomGame() {
 
 function enterRoom(session, snapshot) {
   clearTimeout(computerTimer);
-  const bidValues = bidForm.hidden ? [] : [...bidInputs.querySelectorAll('input')].map((input) => input.value);
+  const bidValues = [...bidAmounts];
   offlineGame = { mode, opponent, game, draft, readyBidder, bidValues };
   mode = session.mode;
   opponent = 'room';
@@ -537,12 +607,14 @@ function leaveRoom() {
   room = null;
   ({ mode, opponent, game, draft, readyBidder } = offlineGame);
   displayGame();
-  if (offlineGame.bidValues.length) {
-    [...bidInputs.querySelectorAll('input')].forEach((input, index) => { input.value = offlineGame.bidValues[index]; });
-    renderBidSummary();
+  if (!bidForm.hidden) {
+    if (offlineGame.bidValues.length) bidAmounts = offlineGame.bidValues;
+    renderBidSummary(biddingPlayer());
+    focusBidControls();
+  } else {
+    byId('open-room').focus();
   }
   offlineGame = null;
-  byId('open-room').focus();
 }
 
 function setRoomEntryStatus(message, busy = false) {
@@ -643,8 +715,11 @@ byId('copy-room').addEventListener('click', copyRoomCode);
 byId('leave-room').addEventListener('click', leaveRoom);
 byId('room-rematch').addEventListener('click', () => actInCurrentRoom({ type: 'rematch' }));
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) room?.refresh();
+  if (document.hidden) return;
+  room?.refresh();
+  revealBidPanel();
 });
+document.addEventListener('close', revealBidPanel, true);
 window.addEventListener('online', () => room?.refresh());
 
 board.addEventListener('focusin', (event) => {
@@ -674,34 +749,37 @@ byId('clear-trio').addEventListener('click', () => {
   renderPointActions();
   boardCells[focusIndex].focus();
 });
-byId('confirm-trio').addEventListener('click', async () => {
+confirmTrio.addEventListener('click', async () => {
   if (room) {
-    if (await actInCurrentRoom({ type: 'select', indices: draft, revision: room.snapshot.revision }) && !bidForm.hidden) {
-      bidInputs.querySelector('input').focus();
-    }
+    const selected = await actInCurrentRoom({ type: 'select', indices: draft, revision: room.snapshot.revision });
+    const active = document.activeElement;
+    if (selected && (active === document.body || active === confirmTrio || board.contains(active))) focusBidControls();
     return;
   }
   if (!canSelectPoint() || !selectPointTrio(game, draft)) return;
   draft = [];
   readyBidder = null;
   update();
-  if (!bidForm.hidden) bidInputs.querySelector('input').focus();
+  focusBidControls();
 });
-bidForm.addEventListener('input', renderBidSummary);
+
 bidForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const player = biddingPlayer();
+  if (bidForm.hidden || confirmBid.disabled || player === null) return;
   if (room) {
-    if (!bidForm.hidden && !byId('confirm-bid').disabled &&
-        await actInCurrentRoom({ type: 'bid', bids: bidAmounts(), round: view.round })) {
-      boardCells[focusIndex].focus();
+    const hadFocus = document.activeElement === confirmBid;
+    const submitted = await actInCurrentRoom({ type: 'bid', bids: bidAmounts, round: view.round });
+    if (submitted) focusBoardAfterBid();
+    else if (hadFocus && document.activeElement === document.body && !bidForm.hidden && !confirmBid.disabled && !dialogOpen()) {
+      confirmBid.focus({ preventScroll: true });
     }
     return;
   }
-  if (bidForm.hidden || player === null || !submitPointBid(game, player, bidAmounts())) return;
+  if (!submitPointBid(game, player, bidAmounts)) return;
   readyBidder = null;
   update();
-  if (!handoffDialog.open && !victoryDialog.open) boardCells[focusIndex].focus();
+  focusBoardAfterBid();
 });
 
 handoffDialog.addEventListener('cancel', (event) => event.preventDefault());
@@ -709,7 +787,7 @@ byId('accept-handoff').addEventListener('click', () => {
   readyBidder = biddingPlayer();
   handoffDialog.close();
   renderPointActions();
-  bidInputs.querySelector('input').focus();
+  focusBidControls();
 });
 byId('help').addEventListener('click', () => {
   const list = document.createElement('ol');

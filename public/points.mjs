@@ -144,6 +144,11 @@ function copyLines(lines) {
   return lines.map((playerLines) => playerLines.map((line) => [...line]));
 }
 
+export function getPointBidLimits(budget, amounts) {
+  const left = amounts.reduce((balance, amount) => balance - amount, budget);
+  return { left, canIncrease: left > 0, canDecrease: amounts.map((amount) => amount > 1) };
+}
+
 export function getPointView(game) {
   const { size, board, selector, phase, round, trio, budgets, bids, lastRound, result } = game;
   return {

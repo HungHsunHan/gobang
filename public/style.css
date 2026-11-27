@@ -67,6 +67,7 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .player-name { font-weight: 650; }
 .player-value { font-variant-numeric: tabular-nums; }
 .board-frame { --axis: clamp(16px, 2.8vw, 30px); position: relative; display: grid; grid-template: var(--axis) minmax(0, 1fr) / var(--axis) minmax(0, 1fr); aspect-ratio: 1; max-width: 620px; margin-inline: auto; padding: 3px var(--axis) var(--axis) 3px; border: 1px solid #efca88; border-radius: 11px; color: #422d1b; background: repeating-linear-gradient(179deg, #512a0712 0 1px, transparent 1px 5px), radial-gradient(ellipse at 80% 16%, #efc78e, #d5a36a 65%, #bd8b55); box-shadow: inset 0 0 23px #68401f48, 0 9px 16px #0a110b70; }
+.board-panel.bidding .board-frame { max-width: clamp(160px, calc(100svh - 232px), 620px); }
 .axis-x, .axis-y { display: grid; font: 700 clamp(.56rem, 1.15vw, .73rem) var(--mono); user-select: none; }
 .axis-x { grid-column: 2; grid-row: 1; grid-template-columns: repeat(var(--size, 15), minmax(0, 1fr)); }
 .axis-y { grid-column: 1; grid-row: 2; grid-template-rows: repeat(var(--size, 15), minmax(0, 1fr)); }
@@ -142,13 +143,19 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .coordinates, .bid-inputs, .action-buttons { display: grid; gap: 7px; }
 .coordinates, .bid-inputs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .action-buttons { grid-template-columns: 1fr 1fr; }
-.coordinates span, .bid-inputs label { border: 1px solid var(--border); border-radius: 7px; padding: 5px; text-align: center; color: var(--muted); }
-.coordinates span { font: 650 1rem var(--mono); min-height: 32px; }
+.coordinates span { min-height: 32px; border: 1px solid var(--border); border-radius: 7px; padding: 5px; text-align: center; color: var(--muted); font: 650 1rem var(--mono); }
 #selection-actions .action-buttons { margin-top: 8px; }
 #selection-actions .button { font-size: 1.05rem; }
-.bid-inputs label { display: grid; gap: 6px; font: 700 .82rem var(--mono); }
-.bid-inputs input { padding: 5px 2px 5px 6px; background: var(--deep); color: #f2f0e4; width: 100%; min-height: 35px; border: 1px solid #4b5b4c; border-radius: 5px; font-size: 1rem; }
-.bid-summary { color: var(--muted); font-size: .84rem; margin: 7px 0 9px; }
+#bid-form { max-width: 620px; margin: 10px auto 0; }
+.bid-stepper { border: 1px solid var(--border); border-radius: 9px; padding: 4px; background: var(--deep); }
+.bid-stepper-heading { display: flex; align-items: center; justify-content: space-between; gap: 3px; padding-bottom: 4px; color: var(--muted); font: 700 .75rem var(--mono); white-space: nowrap; }
+.bid-value { color: var(--accent); font-size: 1rem; }
+.bid-stepper-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.bid-stepper-controls .button { padding: 0; font: 700 1.3rem/1 var(--mono); touch-action: manipulation; }
+.bid-stepper-controls button[aria-disabled="true"] { opacity: .48; cursor: default; }
+.bid-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-top: 8px; }
+.bid-footer .button { white-space: nowrap; }
+.bid-summary { color: var(--muted); font-size: .84rem; line-height: 1.4; }
 #round-summary { color: var(--muted); font-size: .82rem; margin-top: 12px; line-height: 1.55; }
 #round-summary strong { color: #e2cba4; }
 #round-summary ul { margin: 3px 0 0; padding-left: 22px; }
@@ -227,6 +234,26 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   #room-side { grid-column: 1 / -1; }
   .room-controls { gap: 6px; }
   .room-controls .button { padding-inline: 9px; }
+}
+
+@media (max-width: 345px) {
+  .bid-stepper { padding-inline: 3px; }
+  .bid-stepper-heading { gap: 2px; font-size: .7rem; }
+}
+
+@media (min-width: 520px) and (max-height: 480px) {
+  .board-panel.bidding {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(238px, 1fr);
+    grid-template-areas: "header header" "board bids" "legend bids";
+    column-gap: 12px;
+  }
+  .board-panel.bidding .board-header { grid-area: header; }
+  .board-panel.bidding .board-frame { grid-area: board; width: 100%; max-width: calc(100svh - 112px); }
+  .board-panel.bidding .board-footer { grid-area: legend; width: 100%; }
+  .board-panel.bidding #bid-form { grid-area: bids; align-self: center; width: 100%; margin: 0; }
+  .board-panel.bidding .bid-stepper { padding-inline: 3px; }
+  .board-panel.bidding .bid-stepper-heading { gap: 2px; font-size: .7rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
