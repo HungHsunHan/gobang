@@ -52,6 +52,7 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .point-icon { border-bottom: 1px solid currentColor; background: linear-gradient(currentColor, currentColor) 0 100% / 3px 45% no-repeat, linear-gradient(currentColor, currentColor) 50% 100% / 3px 72% no-repeat, linear-gradient(currentColor, currentColor) 100% 100% / 3px 100% no-repeat; }
 
 .game-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(285px, 30%, 324px); align-items: start; gap: 22px; }
+.board-column { display: grid; gap: 16px; }
 .panel { border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius); box-shadow: 0 12px 30px #070f0950; }
 .board-panel { padding: 15px 18px 13px; }
 .board-header, .board-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -117,16 +118,15 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 760; letter-spacing: .09
 .legend-token { width: 12px; height: 12px; box-shadow: 0 0 0 1px #84917d; flex: none; }
 #board-hint { text-align: end; }
 
-.sidebar { display: grid; gap: 15px; }
-.match-panel, .settings-panel { padding: 16px; }
+.match-panel { padding: 16px; }
 .sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
 .counter { color: #e2cba4; font-size: .82rem; font-weight: 650; font-variant-numeric: tabular-nums; border: 1px solid #5b503b; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
 .turn { display: flex; gap: 9px; border-top: 1px solid #354337; padding-top: 13px; line-height: 1.5; }
 .turn strong { font-size: 1.1rem; }
 .turn p { color: var(--muted); font-size: 1rem; margin-top: 3px; }
 .turn-dot { flex: 0 0 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 9px; box-shadow: 0 0 0 3px #dfb77a21; }
-.settings-panel { display: grid; gap: 11px; }
-.settings-panel h2 { margin-bottom: 2px; }
+.settings-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 12px 16px; }
+.settings-panel .opponents { grid-column: 1 / -1; }
 .opponents button { flex: 1 1 0; padding-inline: 5px; }
 .room-panel { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px; margin-bottom: 16px; }
 .room-identity, .room-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
@@ -216,7 +216,7 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   .board-panel { padding: 10px; }
   .board-header { margin-bottom: 9px; }
   .board-footer { margin-top: 8px; }
-  .sidebar { gap: 13px; }
+  .board-column { gap: 13px; }
   .board-frame { --axis: clamp(15px, 4vw, 24px); }
   .room-panel { margin-bottom: 13px; }
 }
