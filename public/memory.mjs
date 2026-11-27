@@ -1,3 +1,5 @@
+import { searchMemoryMove } from './memory-ai.mjs';
+
 const DIRECTIONS = [[0, 1], [1, 0], [1, 1], [1, -1]];
 const LINE_LENGTH = 5;
 
@@ -24,15 +26,13 @@ function scanSide(game, player, row, column, rowStep, columnStep) {
 
   while (row >= 0 && row < size && column >= 0 && column < size) {
     const index = row * size + column;
-    if (board[index] !== player) {
-      return { indices, open: board[index] === null };
-    }
+    if (board[index] !== player) break;
     indices.push(index);
     row += rowStep;
     column += columnStep;
   }
 
-  return { indices, open: false };
+  return indices;
 }
 
 function linesThrough(game, index, player) {
@@ -43,10 +43,7 @@ function linesThrough(game, index, player) {
     const before = scanSide(game, player, row, column, -rowStep, -columnStep);
     const after = scanSide(game, player, row, column, rowStep, columnStep);
 
-    return {
-      indices: [...before.indices.reverse(), index, ...after.indices],
-      openEnds: Number(before.open) + Number(after.open),
-    };
+    return [...before.reverse(), index, ...after];
   });
 }
 
@@ -59,9 +56,9 @@ export function playMemoryMove(game, index) {
   game.lastMove = index;
   game.moveCount += 1;
 
-  const winningLine = linesThrough(game, index, game.turn).find(({ indices }) => indices.length >= LINE_LENGTH);
+  const winningLine = linesThrough(game, index, game.turn).find((line) => line.length >= LINE_LENGTH);
   if (winningLine) {
-    game.result = { winner: game.turn, line: winningLine.indices };
+    game.result = { winner: game.turn, line: winningLine };
   } else if (game.moveCount === game.board.length) {
     game.result = { winner: null, line: [] };
   } else {
@@ -80,34 +77,5 @@ export function getMemoryView(game) {
 }
 
 export function chooseMemoryMove(game) {
-  if (game.result) return null;
-
-  const center = (game.size - 1) / 2;
-  let blockingMove = null;
-  let bestMove = null;
-  let bestScore = -Infinity;
-
-  for (let index = 0; index < game.board.length; index += 1) {
-    if (game.board[index] !== null) continue;
-
-    const attack = linesThrough(game, index, game.turn);
-    if (attack.some(({ indices }) => indices.length >= LINE_LENGTH)) return index;
-
-    if (blockingMove === null && linesThrough(game, index, 1 - game.turn).some(({ indices }) => indices.length >= LINE_LENGTH)) {
-      blockingMove = index;
-    }
-
-    const row = Math.floor(index / game.size);
-    const column = index % game.size;
-    const distance = Math.abs(row - center) + Math.abs(column - center);
-    const extendsLine = attack.some(({ indices, openEnds }) => indices.length > 1 && openEnds > 0);
-    const score = Number(extendsLine) + 1 / (1 + distance);
-
-    if (score > bestScore) {
-      bestMove = index;
-      bestScore = score;
-    }
-  }
-
-  return blockingMove ?? bestMove;
+  return game.result ? null : searchMemoryMove(game);
 }

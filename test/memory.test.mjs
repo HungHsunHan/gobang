@@ -118,7 +118,38 @@ test('the computer blocks a rival four with a single winning end', () => {
   assert.equal(chooseMemoryMove(game), 4);
 });
 
-test('the beginner computer builds its own line while a rival three is still open', () => {
+test('the computer blocks a rival from turning an open three into an open four', () => {
   const game = playMoves(createMemoryGame(9), [29, 40, 30, 80, 31]);
+  assert.ok([28, 32].includes(chooseMemoryMove(game)));
+});
+
+test('the computer blocks an immediate five through a gap', () => {
+  const game = playMoves(createMemoryGame(9), alternate([37, 38, 40, 41], [72, 74, 76]));
   assert.equal(chooseMemoryMove(game), 39);
+});
+
+test('the computer creates two simultaneous winning threats in different directions', () => {
+  const game = playMoves(createMemoryGame(), alternate(
+    [109, 67, 0, 2, 4, 30, 32],
+    [110, 111, 113, 82, 97, 127],
+  ));
+  assert.equal(chooseMemoryMove(game), 112);
+});
+
+test('the computer prioritizes creating an open four', () => {
+  const game = playMoves(createMemoryGame(9), alternate([0, 2, 4, 72, 74], [29, 30, 31, 41]));
+  assert.ok([28, 32].includes(chooseMemoryMove(game)));
+});
+
+test('the computer defends against a broken three that can become an open four', () => {
+  const game = playMoves(createMemoryGame(9), alternate([28, 29, 31], [40, 80]));
+  assert.ok([27, 30, 32].includes(chooseMemoryMove(game)));
+});
+
+test('the computer forces a reply when the rival could otherwise create an open four on either of two lines', () => {
+  const game = playMoves(createMemoryGame(9), alternate([23, 40, 39, 50, 41], [48, 64, 49, 47]));
+  Object.freeze(game.board);
+  Object.freeze(game);
+
+  assert.ok([45, 46].includes(chooseMemoryMove(game)));
 });
