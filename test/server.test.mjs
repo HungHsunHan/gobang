@@ -110,7 +110,7 @@ test('HTTP serves the game and JS, with HEAD support and no external Host access
   assert.equal((await get(port, '/outside.mjs')).status, 404);
 });
 
-test('HTTP serves all seven victory images as WebP', async (t) => {
+test('HTTP serves all seven result images as WebP', async (t) => {
   const server = createGameServer(resolveBinding(parseOptions([]), network));
   t.after(() => new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -119,8 +119,17 @@ test('HTTP serves all seven victory images as WebP', async (t) => {
   await once(server, 'listening');
   const { port } = server.address();
 
-  for (let number = 1; number <= 7; number++) {
-    const path = `/victory/celebration-${number}.webp`;
+  const images = [
+    'chiikawa-1',
+    'chiikawa-2',
+    'chiikawa-3',
+    'chiikawa-4',
+    'chiikawa-5',
+    'devils-plan-cast',
+    'devils-plan-finalists',
+  ];
+  for (const name of images) {
+    const path = `/victory/${name}.webp`;
     const response = await fetch(`http://127.0.0.1:${port}${path}`);
     assert.equal(response.status, 200, path);
     assert.equal(response.headers.get('content-type'), 'image/webp', path);

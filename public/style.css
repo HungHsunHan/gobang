@@ -179,13 +179,13 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
 .room-join-fields input::placeholder { color: var(--muted); }
 #room-entry-status { margin-top: 12px; color: var(--accent); }
 
-#victory-dialog {
+#game-result-dialog {
   width: min(536px, calc(100% - 28px));
   padding: clamp(14px, 4vw, 24px);
   border-color: #a88956;
   background: radial-gradient(ellipse at 50% 0%, #51402a, transparent 68%), var(--surface);
 }
-.victory-heading {
+.game-result-heading {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -193,9 +193,9 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   margin-bottom: 14px;
   color: #f3d6a7;
 }
-.victory-heading h2 { font-size: clamp(1.65rem, 6vw, 2.4rem); line-height: 1.2; }
-.victory-heading span { color: var(--accent); font-size: 1.12rem; }
-#victory-image {
+.game-result-heading h2 { font-size: clamp(1.65rem, 6vw, 2.4rem); line-height: 1.2; }
+.game-result-heading span { color: var(--accent); font-size: 1.12rem; }
+#game-result-image {
   display: block;
   width: 100%;
   aspect-ratio: 4 / 3;
@@ -205,13 +205,29 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   border-radius: 11px;
   background: #1a2119;
 }
-#victory-dialog .action-buttons { margin-top: 16px; }
-@media (prefers-reduced-motion: no-preference) {
-  #victory-dialog[open] { animation: victory-appear 220ms ease-out; }
+#game-result-message {
+  margin-top: 12px;
+  color: #f3d6a7;
+  font-size: clamp(1.05rem, 4.5vw, 1.3rem);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
 }
-@keyframes victory-appear {
+@media (prefers-reduced-motion: no-preference) {
+  #game-result-dialog[open] { animation: game-result-appear 220ms ease-out; }
+}
+@keyframes game-result-appear {
   from { opacity: 0; transform: translateY(8px) scale(.98); }
   to { opacity: 1; transform: none; }
+}
+
+@media (max-height: 480px) {
+  #game-result-dialog { padding: 12px 16px; }
+  .game-result-heading { margin-bottom: 8px; }
+  #game-result-image { max-height: clamp(48px, calc(100dvh - 218px), 200px); }
+  #game-result-message { margin-top: 8px; }
+  #game-result-dialog .action-buttons { margin-top: 10px; }
 }
 
 @media (max-width: 770px) {

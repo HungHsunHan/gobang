@@ -20,7 +20,7 @@ import {
   RoomError,
   writeRoomSession,
 } from './rooms.mjs';
-import { selectVictoryImage } from './victory.mjs';
+import { selectResultDisplay } from './game-result.mjs';
 
 const modes = {
   memory: {
@@ -56,8 +56,10 @@ const boardHint = byId('board-hint');
 const helpDialog = byId('help-dialog');
 const handoffDialog = byId('handoff-dialog');
 const resetDialog = byId('reset-dialog');
-const victoryDialog = byId('victory-dialog');
-const victoryImage = byId('victory-image');
+const gameResultDialog = byId('game-result-dialog');
+const gameResultTitle = byId('game-result-title');
+const gameResultImage = byId('game-result-image');
+const gameResultMessage = byId('game-result-message');
 const bidForm = byId('bid-form');
 const bidInputs = byId('bid-inputs');
 const confirmBid = byId('confirm-bid');
@@ -547,11 +549,13 @@ function update() {
   renderPointActions();
   renderRoom();
   scheduleComputer();
-  const image = previousResult ? null : selectVictoryImage(opponent, view.result);
-  if (image) {
+  const resultDisplay = previousResult ? null : selectResultDisplay(opponent, mode, view);
+  if (resultDisplay) {
     resetDialog.close();
-    victoryImage.src = image;
-    victoryDialog.showModal();
+    gameResultTitle.textContent = resultDisplay.title;
+    gameResultImage.src = resultDisplay.image;
+    gameResultMessage.textContent = resultDisplay.message;
+    gameResultDialog.showModal();
   }
 }
 
@@ -804,12 +808,12 @@ byId('confirm-reset').addEventListener('click', () => {
   resetDialog.close();
   startGame(pendingSettings);
 });
-victoryDialog.addEventListener('close', () => {
-  victoryImage.removeAttribute('src');
+gameResultDialog.addEventListener('close', () => {
+  gameResultImage.removeAttribute('src');
   if (!helpDialog.open) boardCells[focusIndex].focus();
 });
 byId('play-again').addEventListener('click', () => {
-  victoryDialog.close();
+  gameResultDialog.close();
   startGame();
 });
 for (const button of modeButtons) {

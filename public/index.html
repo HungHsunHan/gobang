@@ -128,13 +128,14 @@
       <button id="confirm-reset" type="button" class="button button-primary">開始新局</button>
     </div>
   </dialog>
-  <dialog id="victory-dialog" aria-labelledby="victory-title">
-    <div class="victory-heading">
+  <dialog id="game-result-dialog" aria-labelledby="game-result-title" aria-describedby="game-result-message">
+    <div class="game-result-heading">
       <span aria-hidden="true">✦</span>
-      <h2 id="victory-title">你贏了！</h2>
+      <h2 id="game-result-title"></h2>
       <span aria-hidden="true">✦</span>
     </div>
-    <img id="victory-image" alt="">
+    <img id="game-result-image" alt="">
+    <p id="game-result-message"></p>
     <form method="dialog" class="action-buttons">
       <button class="button button-outline" autofocus>查看棋盤</button>
       <button id="play-again" type="button" class="button button-primary">再玩一局</button>
