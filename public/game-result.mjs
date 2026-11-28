@@ -1,7 +1,19 @@
 const blindLongMatchMovesPerPlayer = 10;
 const biddingLongMatchRounds = 7;
-const chiikawaImages = Array.from({ length: 5 }, (_, index) => ({
-  image: `./victory/chiikawa-${index + 1}.webp`,
+const celebrationImageNames = [
+  'chiikawa-1',
+  'chiikawa-2',
+  'chiikawa-3',
+  'chiikawa-4',
+  'chiikawa-5',
+  'chiikawa-6',
+  'chiikawa-7',
+  'chiikawa-8',
+  'tamagotchi-1',
+  'tamagotchi-2',
+];
+const celebrationImages = celebrationImageNames.map((name) => ({
+  image: `./victory/${name}.webp`,
   win: '優秀！',
   loss: '我們會為你應援的！',
 }));
@@ -25,7 +37,7 @@ export function selectResultDisplay(player, mode, { result, moveCount, round }, 
   const longMatch = mode === 'memory'
     ? moveCount >= blindLongMatchMovesPerPlayer * 2
     : round >= biddingLongMatchRounds;
-  const images = longMatch ? devilsPlanImages : chiikawaImages;
+  const images = longMatch ? devilsPlanImages : celebrationImages;
   const { image, win, loss } = images[Math.floor(random() * images.length)];
   return winner === player
     ? { image, title: '你贏了！', message: win }

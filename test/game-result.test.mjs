@@ -2,17 +2,22 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { selectResultDisplay } from '../public/game-result.mjs';
 
-const chiikawaImages = [
+const celebrationImages = [
   'chiikawa-1',
   'chiikawa-2',
   'chiikawa-3',
   'chiikawa-4',
   'chiikawa-5',
+  'chiikawa-6',
+  'chiikawa-7',
+  'chiikawa-8',
+  'tamagotchi-1',
+  'tamagotchi-2',
 ];
 const devilsPlanImages = ['devils-plan-cast', 'devils-plan-mask'];
 const outcomes = [
-  { title: '你贏了！', chiikawa: '優秀！', devilsPlan: ['來挑戰我們吧！', '恭喜你逃脫流配地，去主戰場贏下勝利吧'] },
-  { title: '你輸了', chiikawa: '我們會為你應援的！', devilsPlan: ['等你下次來挑戰', '你是魔鬼的計謀第一位淘汰玩家'] },
+  { title: '你贏了！', celebration: '優秀！', devilsPlan: ['來挑戰我們吧！', '恭喜你逃脫流配地，去主戰場贏下勝利吧'] },
+  { title: '你輸了', celebration: '我們會為你應援的！', devilsPlan: ['等你下次來挑戰', '你是魔鬼的計謀第一位淘汰玩家'] },
 ];
 
 for (const [label, mode, winner, progress, wasLongMatch] of [
@@ -27,8 +32,8 @@ for (const [label, mode, winner, progress, wasLongMatch] of [
 ]) {
   for (const player of [0, 1]) {
     test(`${label} shows the right images and copy for seat ${player}`, () => {
-      const { title, chiikawa, devilsPlan } = outcomes[Number(player !== winner)];
-      const images = wasLongMatch ? devilsPlanImages : chiikawaImages;
+      const { title, celebration, devilsPlan } = outcomes[Number(player !== winner)];
+      const images = wasLongMatch ? devilsPlanImages : celebrationImages;
       const view = { ...progress, result: { winner } };
       const selected = images.map((_, index) =>
         selectResultDisplay(player, mode, view, () => (index + 0.5) / images.length));
@@ -36,7 +41,7 @@ for (const [label, mode, winner, progress, wasLongMatch] of [
       assert.deepEqual(selected, images.map((name, index) => ({
         image: `./victory/${name}.webp`,
         title,
-        message: wasLongMatch ? devilsPlan[index] : chiikawa,
+        message: wasLongMatch ? devilsPlan[index] : celebration,
       })));
     });
   }

@@ -110,7 +110,7 @@ test('HTTP serves the game and JS, with HEAD support and no external Host access
   assert.equal((await get(port, '/outside.mjs')).status, 404);
 });
 
-test('HTTP serves all seven result images as WebP', async (t) => {
+test('HTTP serves all twelve result images as WebP', async (t) => {
   const server = createGameServer(resolveBinding(parseOptions([]), network));
   t.after(() => new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -125,6 +125,11 @@ test('HTTP serves all seven result images as WebP', async (t) => {
     'chiikawa-3',
     'chiikawa-4',
     'chiikawa-5',
+    'chiikawa-6',
+    'chiikawa-7',
+    'chiikawa-8',
+    'tamagotchi-1',
+    'tamagotchi-2',
     'devils-plan-cast',
     'devils-plan-mask',
   ];
