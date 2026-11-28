@@ -126,7 +126,7 @@ test('HTTP serves all seven result images as WebP', async (t) => {
     'chiikawa-4',
     'chiikawa-5',
     'devils-plan-cast',
-    'devils-plan-finalists',
+    'devils-plan-mask',
   ];
   for (const name of images) {
     const path = `/victory/${name}.webp`;

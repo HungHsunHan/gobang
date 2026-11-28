@@ -193,8 +193,8 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   margin-bottom: 14px;
   color: #f3d6a7;
 }
-.game-result-heading h2 { font-size: clamp(1.65rem, 6vw, 2.4rem); line-height: 1.2; }
-.game-result-heading span { color: var(--accent); font-size: 1.12rem; }
+.game-result-heading h2 { font-size: clamp(.95rem, 3.4vw, 1.2rem); line-height: 1.2; }
+.game-result-heading span { color: var(--accent); font-size: .9rem; }
 #game-result-image {
   display: block;
   width: 100%;
@@ -208,7 +208,7 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
 #game-result-message {
   margin-top: 12px;
   color: #f3d6a7;
-  font-size: clamp(1.05rem, 4.5vw, 1.3rem);
+  font-size: clamp(1.25rem, 4.8vw, 1.85rem);
   font-weight: 700;
   line-height: 1.4;
   text-align: center;
@@ -226,7 +226,7 @@ dialog p + button, dialog p + .action-buttons { margin-top: 16px; }
   #game-result-dialog { padding: 12px 16px; }
   .game-result-heading { margin-bottom: 8px; }
   #game-result-image { max-height: clamp(48px, calc(100dvh - 218px), 200px); }
-  #game-result-message { margin-top: 8px; }
+  #game-result-message { margin-top: 8px; font-size: clamp(1.25rem, 4.35vw, 1.6rem); }
   #game-result-dialog .action-buttons { margin-top: 10px; }
 }
 

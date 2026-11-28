@@ -11,21 +11,21 @@ const devilsPlanImages = [
     loss: '等你下次來挑戰',
   },
   {
-    image: './victory/devils-plan-finalists.webp',
+    image: './victory/devils-plan-mask.webp',
     win: '恭喜你逃脫流配地，去主戰場贏下勝利吧',
     loss: '你是魔鬼的計謀第一位淘汰玩家',
   },
 ];
 
-export function selectResultDisplay(opponent, mode, { result, moveCount, round }, random = Math.random) {
+export function selectResultDisplay(player, mode, { result, moveCount, round }, random = Math.random) {
   const winner = result?.winner;
-  if (opponent !== 'computer' || (winner !== 0 && winner !== 1)) return null;
+  if ((player !== 0 && player !== 1) || (winner !== 0 && winner !== 1)) return null;
 
   // Blind turns alternate, while each resolved bidding round includes bids from both players.
   const stepsPerPlayer = mode === 'memory' ? Math.floor(moveCount / 2) : round;
   const images = stepsPerPlayer >= longMatchSteps ? devilsPlanImages : chiikawaImages;
   const { image, win, loss } = images[Math.floor(random() * images.length)];
-  return winner === 0
+  return winner === player
     ? { image, title: '你贏了！', message: win }
     : { image, title: '你輸了', message: loss };
 }

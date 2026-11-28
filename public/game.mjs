@@ -59,12 +59,14 @@ const gameResultDialog = byId('game-result-dialog');
 const gameResultTitle = byId('game-result-title');
 const gameResultImage = byId('game-result-image');
 const gameResultMessage = byId('game-result-message');
+const playAgainButton = byId('play-again');
 const bidForm = byId('bid-form');
 const bidInputs = byId('bid-inputs');
 const confirmBid = byId('confirm-bid');
 const confirmTrio = byId('confirm-trio');
 const roomDialog = byId('room-dialog');
 const roomCodeInput = byId('join-room-code');
+const roomRematchButton = byId('room-rematch');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 
 let mode = 'memory';
@@ -82,6 +84,7 @@ let computerTimer;
 let pendingMode;
 let offlineGame;
 let room;
+let renderedRoomMatch;
 let savedRoom = readRoomSession();
 let enteringRoom = false;
 let joinAttempt;
@@ -536,7 +539,14 @@ function update() {
   renderPointActions();
   renderRoom();
   scheduleComputer();
-  const resultDisplay = previousResult ? null : selectResultDisplay(room ? 'room' : 'computer', mode, view);
+  const roomMatch = room?.snapshot?.match;
+  if (renderedRoomMatch !== roomMatch) {
+    renderedRoomMatch = roomMatch;
+    gameResultDialog.close();
+    return;
+  }
+  const player = room ? room.snapshot?.player : 0;
+  const resultDisplay = previousResult ? null : selectResultDisplay(player, mode, view);
   if (resultDisplay) {
     resetDialog.close();
     gameResultTitle.textContent = resultDisplay.title;
@@ -552,14 +562,15 @@ function rememberRoom(session) {
 }
 
 function renderRoom() {
-  const rematchButton = byId('room-rematch');
-  rematchButton.hidden = !room || !view.result || room.ended;
-  if (!room) return;
-  const snapshot = room.snapshot;
+  const snapshot = room?.snapshot;
   const player = snapshot?.player;
   const requested = snapshot?.rematch[player];
-  rematchButton.disabled = Boolean(requested) || roomActionBlocked();
-  rematchButton.textContent = requested ? '等候對手同意' : '再玩一局';
+  const rematchDisabled = Boolean(requested) || roomActionBlocked();
+  const rematchLabel = requested ? '等候對手同意' : '再玩一局';
+  roomRematchButton.hidden = !room || !view.result || room.ended;
+  roomRematchButton.disabled = playAgainButton.disabled = rematchDisabled;
+  roomRematchButton.textContent = playAgainButton.textContent = rematchLabel;
+  if (!room) return;
   byId('room-code').textContent = room.session.code;
   byId('room-side').textContent = player === undefined ? '' : `你是${sideName(player)}`;
   let message = room.error || copyMessage;
@@ -681,6 +692,12 @@ function actInCurrentRoom(action) {
   return room.act({ ...action, match: room.snapshot.match });
 }
 
+function playAgain() {
+  gameResultDialog.close();
+  if (room) actInCurrentRoom({ type: 'rematch' });
+  else startGame();
+}
+
 byId('open-room').addEventListener('click', () => {
   byId('room-mode').textContent = modes[mode].title;
   roomCodeInput.value = savedRoom?.code ?? '';
@@ -702,7 +719,7 @@ byId('join-room-form').addEventListener('submit', (event) => {
 });
 byId('copy-room').addEventListener('click', copyRoomCode);
 byId('leave-room').addEventListener('click', leaveRoom);
-byId('room-rematch').addEventListener('click', () => actInCurrentRoom({ type: 'rematch' }));
+roomRematchButton.addEventListener('click', playAgain);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   room?.refresh();
@@ -788,10 +805,7 @@ gameResultDialog.addEventListener('close', () => {
   gameResultImage.removeAttribute('src');
   if (!helpDialog.open) boardCells[focusIndex].focus();
 });
-byId('play-again').addEventListener('click', () => {
-  gameResultDialog.close();
-  startGame();
-});
+playAgainButton.addEventListener('click', playAgain);
 for (const button of modeButtons) {
   button.addEventListener('click', () => {
     if (mode !== button.dataset.mode) requestGame(button.dataset.mode);
