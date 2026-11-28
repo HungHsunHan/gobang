@@ -16,14 +16,14 @@ const outcomes = [
 ];
 
 for (const [label, mode, winner, progress, wasLongMatch] of [
-  ['a blind win before the computer plays its seventh move', 'memory', 0, { moveCount: 13 }, false],
-  ['a blind loss on the computer’s sixth move', 'memory', 1, { moveCount: 12 }, false],
-  ['a blind win after both players have played seven moves', 'memory', 0, { moveCount: 15 }, true],
-  ['a blind loss on the computer’s seventh move', 'memory', 1, { moveCount: 14 }, true],
-  ['a bidding win in round six', 'point', 0, { round: 6 }, false],
-  ['a bidding loss in round six', 'point', 1, { round: 6 }, false],
-  ['a bidding win in round seven', 'point', 0, { round: 7 }, true],
-  ['a bidding loss in round seven', 'point', 1, { round: 7 }, true],
+  ['a blind result after 19 moves', 'memory', 0, { moveCount: 19 }, false],
+  ['a blind result after 18 moves', 'memory', 1, { moveCount: 18 }, false],
+  ['a blind result after 21 moves', 'memory', 0, { moveCount: 21 }, true],
+  ['a blind result after 20 moves', 'memory', 1, { moveCount: 20 }, true],
+  ['a dark-side bidding win in round six', 'point', 0, { round: 6 }, false],
+  ['a light-side bidding win in round six', 'point', 1, { round: 6 }, false],
+  ['a dark-side bidding win in round seven', 'point', 0, { round: 7 }, true],
+  ['a light-side bidding win in round seven', 'point', 1, { round: 7 }, true],
 ]) {
   for (const player of [0, 1]) {
     test(`${label} shows the right images and copy for seat ${player}`, () => {
