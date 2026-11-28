@@ -101,17 +101,37 @@ test('half the unspent points rounded down are added to each new ten-point budge
   assert.deepEqual(getPointView(game).budgets, [12, 10]);
 });
 
-test('a run of six wins once after all three intersections are awarded', () => {
+test('a run of six does not end the game or count as a new line', () => {
   const game = createPointGame(7);
   playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
   playRound(game, [3, 4, 5], [3, 3, 3], [1, 1, 1]);
   const view = getPointView(game);
+  assert.equal(view.phase, 'select');
+  assert.equal(view.result, null);
+  assert.deepEqual(view.lastRound.lines, [[], []]);
+});
+
+test('a run of exactly five counts once when two newly awarded stones complete it', () => {
+  const game = createPointGame(7);
+  playRound(game, [0, 1, 2], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [3, 4, 5], [3, 3, 1], [1, 1, 3]);
+  const view = getPointView(game);
   assert.equal(view.phase, 'finished');
   assert.equal(view.result.winner, 0);
-  assert.deepEqual(view.result.line, [0, 1, 2, 3, 4, 5]);
-  assert.deepEqual(view.result.lines.map((lines) => lines.length), [1, 0]);
+  assert.deepEqual(view.result.line, [0, 1, 2, 3, 4]);
+  assert.deepEqual(view.result.lines, [[[0, 1, 2, 3, 4]], []]);
   assert.equal(selectPointTrio(game, [7, 8, 9]), false);
   assert.equal(submitPointBid(game, 0, [1, 1, 1]), false);
+});
+
+test('a player can win with an exact five crossing a seven-stone run in the same round', () => {
+  const game = createPointGame(9);
+  playRound(game, [36, 37, 38], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [4, 13, 22], [3, 3, 3], [1, 1, 1]);
+  playRound(game, [31, 32, 33], [3, 1, 1], [1, 3, 3]);
+  playRound(game, [42, 43, 44], [3, 1, 1], [1, 3, 3]);
+  playRound(game, [39, 40, 41], [3, 3, 3], [1, 1, 1]);
+  assert.deepEqual(getPointView(game).result.lines, [[[4, 13, 22, 31, 40]], []]);
 });
 
 test('simultaneous equal lines draw after all three intersections are awarded', () => {
@@ -167,14 +187,22 @@ test('the computer concentrates its bid on both intersections needed to win', ()
   assert.equal(selectPointTrio(game, [3, 4, 5]), true);
   const bid = choosePointBid(game, 0);
   assert.equal(submitPointBid(game, 0, bid), true);
-  assert.equal(submitPointBid(game, 1, [4, 4, 1]), true);
-  assert.equal(getPointView(game).result?.winner, 0);
+  assert.equal(submitPointBid(game, 1, [4, 4, 2]), true);
+  assert.deepEqual(getPointView(game).result?.line, [0, 1, 2, 3, 4]);
 });
 
 test('the computer avoids offering an opponent their winning intersection', () => {
   const game = createPointGame(7);
   for (const point of [21, 22, 23, 24]) game.board[point] = 1;
+  game.board[26] = 0;
   assert.equal(choosePointTrio(game).includes(25), false);
+});
+
+test('the computer saves points when the rival would only complete a six', () => {
+  const game = createPointGame(7);
+  for (const point of [21, 22, 23, 24, 26]) game.board[point] = 1;
+  assert.equal(selectPointTrio(game, [11, 18, 25]), true);
+  assert.ok(choosePointBid(game, 0).reduce((total, amount) => total + amount, 0) <= 8);
 });
 
 test('the computer denies an opponent a five that needs two intersections', () => {

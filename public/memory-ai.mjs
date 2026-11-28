@@ -1,6 +1,6 @@
 const EMPTY = 0;
 const EDGE = 3;
-const WINDOW_RADIUS = 4;
+const WINDOW_RADIUS = 5;
 const WIN = 1_000_000;
 const TWO_WINNING_POINTS = 100_000;
 const FOUR = 4_500;
@@ -56,7 +56,7 @@ function moveValue(position, index, player) {
   let support = 0;
 
   for (const direction of position.directions) {
-    // Nine bits represent the four cells on either side and the proposed stone.
+    // Five cells on either side include the endpoints outside each possible five.
     let own = 1 << WINDOW_RADIUS;
     let blocked = 0;
     for (let bit = 0; bit <= 2 * WINDOW_RADIUS; bit += 1) {
@@ -68,9 +68,10 @@ function moveValue(position, index, player) {
 
     let winningEnds = 0;
     let mostStones = 1;
-    for (let start = 0; start <= WINDOW_RADIUS; start += 1) {
+    for (let start = 1; start <= WINDOW_RADIUS; start += 1) {
       const five = 0b11111 << start;
-      if (five & blocked) continue;
+      const ends = 0b1000001 << (start - 1);
+      if ((five & blocked) || (ends & own)) continue;
       const count = STONE_COUNT[(own & five) >> start];
       if (count === 5) return WIN;
       if (count === 4) winningEnds |= five & ~own;
@@ -84,10 +85,11 @@ function moveValue(position, index, player) {
     }
 
     let openStones = 1;
-    for (let start = 0; start < WINDOW_RADIUS; start += 1) {
+    for (let start = 1; start < WINDOW_RADIUS; start += 1) {
       const middle = 0b011110 << start;
       const ends = 0b100001 << start;
-      if (!(middle & (1 << WINDOW_RADIUS)) || ((middle | ends) & blocked) || (ends & own)) continue;
+      const beyondEnds = 0b10000001 << (start - 1);
+      if (((middle | ends) & blocked) || ((ends | beyondEnds) & own)) continue;
       openStones = Math.max(openStones, STONE_COUNT[(own & middle) >> start]);
     }
 

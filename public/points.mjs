@@ -83,7 +83,7 @@ function newlyFormedLines({ board, size, trio }) {
     for (const direction of DIRECTIONS) {
       const { start, stride, length } = scanRun(board, size, point, player, direction);
       const run = `${start},${stride}`;
-      if (length < WIN_LENGTH || seen.has(run)) continue;
+      if (length !== WIN_LENGTH || seen.has(run)) continue;
       seen.add(run);
       lines[player].push(Array.from({ length }, (_, offset) => start + offset * stride));
     }
@@ -182,9 +182,10 @@ function indexPotentialLines({ board, size }, triosAt) {
     for (const [dr, dc] of DIRECTIONS) {
       if (at(board, size, row + (WIN_LENGTH - 1) * dr, col + (WIN_LENGTH - 1) * dc) === undefined) continue;
 
-      const line = { owner: null, stones: 0, empty: [] };
+      const stride = dr * size + dc;
+      const line = { owner: null, stones: 0, empty: [], emptyEnds: [], endOwners: 0 };
       for (let offset = 0; offset < WIN_LENGTH; offset++) {
-        const point = index + offset * (dr * size + dc);
+        const point = index + offset * stride;
         const stone = board[point];
         if (stone === null) {
           line.empty.push(point);
@@ -196,7 +197,16 @@ function indexPotentialLines({ board, size }, triosAt) {
       }
       // Once a vacancy is outside every legal trio, it can never be filled.
       if (line.empty.length + line.stones !== WIN_LENGTH || line.empty.some((point) => triosAt[point].length === 0)) continue;
+      for (const offset of [-1, WIN_LENGTH]) {
+        const stone = at(board, size, row + offset * dr, col + offset * dc);
+        if (stone === null) line.emptyEnds.push(index + offset * stride);
+        else if (stone !== undefined) line.endOwners |= 1 << stone;
+      }
+      if (line.owner !== null && (line.endOwners & (1 << line.owner))) continue;
       for (const point of line.empty) linesAt[point].push(line);
+      if (line.owner !== null) {
+        for (const point of line.emptyEnds) linesAt[point].push(line);
+      }
     }
   }
   return linesAt;
@@ -213,22 +223,20 @@ function indexPlayableTrios(position) {
 
 function scoreTrioOutcomes({ position, linesAt, trios, triosAt }, trio, player) {
   const { board, size, selector } = position;
-  const affected = new Map();
-  trio.forEach((point, slot) => {
-    for (const line of linesAt[point]) {
-      affected.set(line, (affected.get(line) ?? 0) | (1 << slot));
-    }
-  });
+  const slotAt = new Map(trio.map((point, slot) => [point, 1 << slot]));
+  const slotsFor = (points) => points.reduce((mask, point) => mask | (slotAt.get(point) ?? 0), 0);
+  const affected = new Set(trio.flatMap((point) => linesAt[point]));
 
-  const selected = new Set(trio);
-  const survives = (next) => next.every((point) => !selected.has(point));
+  const survives = (next) => next.every((point) => !slotAt.has(point));
   const blocked = !trios.some(survives);
   const playableAfter = new Map(trio.map((point) => [point, true]));
 
-  const changes = [...affected].map(([line, slots]) => ({
+  const changes = [...affected].map((line) => ({
     owner: line.owner,
     stones: line.stones,
-    slots,
+    slots: slotsFor(line.empty),
+    endOwners: line.endOwners,
+    endSlots: slotsFor(line.emptyEnds),
     playable: line.empty.every((point) => {
       if (!playableAfter.has(point)) playableAfter.set(point, triosAt[point].some(survives));
       return playableAfter.get(point);
@@ -239,19 +247,22 @@ function scoreTrioOutcomes({ position, linesAt, trios, triosAt }, trio, player) 
   const scores = Array(ALL_SLOTS + 1).fill(0);
   for (let owned = 0; owned <= ALL_SLOTS; owned++) {
     let potentiallyFinished = false;
-    for (const { owner, stones, slots, playable } of changes) {
+    for (const { owner, stones, slots, endOwners, endSlots, playable } of changes) {
       const ownSlots = owned & slots;
       if (owner !== null) scores[owned] -= (owner === player ? 1 : -1) * WINDOW_VALUES[stones];
       if (!playable || (ownSlots !== 0 && ownSlots !== slots)) continue;
 
-      const newOwner = ownSlots ? player : 1 - player;
+      const newOwner = slots === 0 ? owner : (ownSlots ? player : 1 - player);
       if (owner !== null && owner !== newOwner) continue;
+      const ownerSlots = newOwner === player ? owned : ALL_SLOTS ^ owned;
+      // An adjacent stone of the same color makes this window part of a longer run.
+      if ((endOwners & (1 << newOwner)) || (endSlots & ownerSlots)) continue;
       const newStones = stones + SLOT_COUNTS[slots];
       if (newStones === WIN_LENGTH) {
         potentiallyFinished = true;
       } else {
         // The player selecting next has the first chance to offer a winning point.
-        const tempo = newStones === WIN_LENGTH - 1 && newOwner !== selector ? 1.35 : 1;
+        const tempo = slots !== 0 && newStones === WIN_LENGTH - 1 && newOwner !== selector ? 1.35 : 1;
         scores[owned] += (newOwner === player ? 1 : -1) * WINDOW_VALUES[newStones] * tempo;
       }
     }

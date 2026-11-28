@@ -65,9 +65,19 @@ for (const [direction, line] of Object.entries(winningLines)) {
   });
 }
 
-test('six contiguous stones win when a move fills the gap', () => {
-  const game = playMoves(createMemoryGame(9), alternate([28, 29, 31, 32, 33, 30], [0, 2, 4, 6, 8]));
-  assert.deepEqual(game.result, { winner: 0, line: [28, 29, 30, 31, 32, 33] });
+for (const run of [[28, 29, 31, 32, 33, 30], [28, 29, 31, 32, 33, 34, 30]]) {
+  test(`${run.length} contiguous stones keep the game in progress`, () => {
+    const game = playMoves(createMemoryGame(9), alternate(run, [0, 2, 4, 6, 8, 72].slice(0, run.length - 1)));
+    assert.equal(game.result, null);
+  });
+}
+
+test('an exact five wins when the same move forms a longer run in another direction', () => {
+  const game = playMoves(createMemoryGame(9), alternate(
+    [37, 38, 39, 41, 42, 22, 31, 49, 58, 40],
+    [0, 2, 6, 8, 72, 74, 78, 80, 63],
+  ));
+  assert.deepEqual(game.result, { winner: 0, line: [22, 31, 40, 49, 58] });
 });
 
 test('indices that cross the board boundary do not count as a row', () => {
@@ -113,8 +123,24 @@ test('the computer prefers an immediate win to blocking and leaves state untouch
   assert.deepEqual(game, previous);
 });
 
+test('the computer chooses an exact five over a longer run through a gap', () => {
+  const game = playMoves(createMemoryGame(9), alternate(
+    [36, 37, 38, 40, 41, 0, 1, 2, 3],
+    [72, 74, 76, 78, 80, 63, 65, 67, 69],
+  ));
+  assert.equal(chooseMemoryMove(game), 4);
+});
+
 test('the computer blocks a rival four with a single winning end', () => {
   const game = playMoves(createMemoryGame(9), [0, 72, 1, 74, 2, 76, 3]);
+  assert.equal(chooseMemoryMove(game), 4);
+});
+
+test('the computer blocks the rival exact five when a longer run is also possible', () => {
+  const game = playMoves(createMemoryGame(9), alternate(
+    [36, 37, 38, 40, 41, 0, 1, 2, 3],
+    [72, 74, 76, 78, 80, 63, 65, 67],
+  ));
   assert.equal(chooseMemoryMove(game), 4);
 });
 

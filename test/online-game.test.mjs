@@ -96,3 +96,33 @@ test('concurrent HTTP bids settle once while keeping each player’s budget priv
   assert.equal(Object.hasOwn(guestState.view, 'bids'), false);
   await host(actions, 409, bid([7, 1, 1]));
 });
+
+test('an online bidding game continues after six in a row and ends on exactly five', async (t) => {
+  const connect = await roomClient(t);
+  const host = connect();
+  const guest = connect();
+  const { code } = await host('', 201, { mode: 'point' });
+  const path = `/${code}`;
+  const actions = `${path}/actions`;
+  let state = await guest(`${path}/join`, 200, {});
+
+  async function settle(indices, hostBids, guestBids) {
+    const { match, revision, view: { selector, round } } = state;
+    await [host, guest][selector](actions, 200, { type: 'select', indices, match, revision });
+    await host(actions, 200, { type: 'bid', bids: hostBids, match, round });
+    state = await guest(actions, 200, { type: 'bid', bids: guestBids, match, round });
+  }
+
+  await settle([0, 1, 2], [3, 3, 3], [1, 1, 1]);
+  await settle([3, 4, 5], [3, 3, 3], [1, 1, 1]);
+  assert.deepEqual(state.view.board.slice(0, 6), [0, 0, 0, 0, 0, 0]);
+  assert.equal(state.view.result, null);
+  assert.equal((await host(path, 200)).view.result, null);
+
+  const row = state.view.size;
+  await settle([row, row + 1, row + 2], [3, 3, 3], [1, 1, 1]);
+  await settle([row + 3, row + 4, row + 5], [3, 3, 1], [1, 1, 2]);
+  const line = [row, row + 1, row + 2, row + 3, row + 4];
+  assert.deepEqual(state.view.result, { winner: 0, line, lines: [[line], []], reason: 'line' });
+  assert.deepEqual((await host(path, 200)).view.result, state.view.result);
+});

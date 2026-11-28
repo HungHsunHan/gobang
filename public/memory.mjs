@@ -56,7 +56,7 @@ export function playMemoryMove(game, index) {
   game.lastMove = index;
   game.moveCount += 1;
 
-  const winningLine = linesThrough(game, index, game.turn).find((line) => line.length >= LINE_LENGTH);
+  const winningLine = linesThrough(game, index, game.turn).find((line) => line.length === LINE_LENGTH);
   if (winningLine) {
     game.result = { winner: game.turn, line: winningLine };
   } else if (game.moveCount === game.board.length) {
