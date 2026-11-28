@@ -19,3 +19,12 @@ test('Cloudflare sends the same content type protection as the local server', ()
   const headers = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
   assert.match(headers, /^\/\*\r?\n  X-Content-Type-Options: nosniff$/m);
 });
+
+test('the game settings offer only computer and online room play', () => {
+  const page = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  const settings = page.match(/aria-label="選擇對手">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  const choices = [...settings.matchAll(/<button\b[^>]*>([^<]+)<\/button>/g)]
+    .map(([, label]) => label);
+
+  assert.deepEqual(choices, ['對戰電腦', '連線對戰']);
+});

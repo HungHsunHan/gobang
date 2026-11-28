@@ -43,8 +43,7 @@ for (const [label, mode, winner, progress, wasLongMatch] of [
 for (const [label, opponent, result] of [
   ['an unfinished game', 'computer', null],
   ['a draw', 'computer', { winner: null }],
-  ['a local player win', 'local', { winner: 0 }],
-  ['an online player win', 'online', { winner: 0 }],
+  ['an online player win', 'room', { winner: 0 }],
 ]) {
   test(`${label} does not select a result display`, () => {
     const view = { result, moveCount: 15 };

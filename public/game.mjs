@@ -54,7 +54,6 @@ const legendToken = boardLegend.firstElementChild;
 const legendText = boardLegend.lastChild;
 const boardHint = byId('board-hint');
 const helpDialog = byId('help-dialog');
-const handoffDialog = byId('handoff-dialog');
 const resetDialog = byId('reset-dialog');
 const gameResultDialog = byId('game-result-dialog');
 const gameResultTitle = byId('game-result-title');
@@ -67,23 +66,20 @@ const confirmTrio = byId('confirm-trio');
 const roomDialog = byId('room-dialog');
 const roomCodeInput = byId('join-room-code');
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
-const opponentButtons = [...document.querySelectorAll('[data-opponent]')];
 
 let mode = 'memory';
-let opponent = 'computer';
 let game;
 let view;
 let boardCells = [];
 let focusIndex;
 let legalTrios = [];
 let draft = [];
-let readyBidder = null;
 let bidKey = '';
 let bidAmounts = [];
 let bidSteppers = [];
 let revealBidPending = false;
 let computerTimer;
-let pendingSettings;
+let pendingMode;
 let offlineGame;
 let room;
 let savedRoom = readRoomSession();
@@ -96,8 +92,8 @@ function coordinate(index) {
 }
 
 function playerName(player) {
-  if (opponent === 'computer') return player === 0 ? '你' : '電腦';
-  if (room?.snapshot) return player === room.snapshot.player ? '你' : '對手';
+  if (!room) return player === 0 ? '你' : '電腦';
+  if (room.snapshot) return player === room.snapshot.player ? '你' : '對手';
   return `玩家 ${player + 1}`;
 }
 
@@ -120,27 +116,25 @@ function displayGame() {
   byId('settings-panel').hidden = Boolean(room);
   byId('room-panel').hidden = !room;
   for (const button of modeButtons) button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
-  for (const button of opponentButtons) button.setAttribute('aria-pressed', String(button.dataset.opponent === opponent));
   update();
 }
 
-function startGame(settings = { mode, opponent }) {
+function startGame(nextMode = mode) {
   clearTimeout(computerTimer);
-  ({ mode, opponent } = settings);
+  mode = nextMode;
   game = mode === 'memory' ? createMemoryGame() : createPointGame();
   draft = [];
-  readyBidder = null;
   displayGame();
 }
 
-function requestGame(settings = { mode, opponent }) {
+function requestGame(nextMode = mode) {
   const played = mode === 'memory' ? view.moveCount > 0 : view.round > 1 || view.phase === 'bid' || draft.length > 0;
   if (played && !view.result) {
-    pendingSettings = settings;
+    pendingMode = nextMode;
     resetDialog.showModal();
     return;
   }
-  startGame(settings);
+  startGame(nextMode);
 }
 
 function buildBoard() {
@@ -229,7 +223,7 @@ function canPlayMemory() {
 
 function canPlayAs(player) {
   if (room) return room.snapshot?.joined && player === room.snapshot.player;
-  return opponent === 'local' || player === 0;
+  return player === 0;
 }
 
 function roomActionBlocked() {
@@ -290,15 +284,12 @@ function renderBoard() {
 
 function biddingPlayer() {
   if (view.phase !== 'bid') return null;
-  if (room) {
-    const player = room.snapshot.player;
-    return view.submitted[player] ? null : player;
-  }
-  if (opponent === 'computer') return view.submitted[0] ? null : 0;
-  return view.submitted[view.selector] ? 1 - view.selector : view.selector;
+  const player = room ? room.snapshot.player : 0;
+  return view.submitted[player] ? null : player;
 }
 
 function renderPlayers(activePlayer) {
+  const ownPlayer = room ? room.snapshot?.player : 0;
   const players = [];
   for (const player of [0, 1]) {
     const entry = document.createElement('li');
@@ -315,7 +306,7 @@ function renderPlayers(activePlayer) {
     let status;
     if (mode === 'point') {
       if (view.phase === 'bid' && view.submitted[player]) status = '已出價';
-      else if ((opponent === 'computer' && player === 0 || room?.snapshot?.player === player) && !view.result) status = `${view.budgets[player]} 點`;
+      else if (player === ownPlayer && !view.result) status = `${view.budgets[player]} 點`;
     } else if (player === 0) status = '先手';
     if (status) {
       const value = document.createElement('span');
@@ -498,7 +489,7 @@ function renderBidForm(player) {
 function renderPointActions() {
   const isPoint = mode === 'point';
   const player = isPoint ? biddingPlayer() : null;
-  const isBidding = player !== null && (opponent !== 'local' || readyBidder === player);
+  const isBidding = player !== null;
   byId('point-actions').hidden = !isPoint;
   bidForm.hidden = !isBidding;
   boardPanel.classList.toggle('bidding', isBidding);
@@ -517,14 +508,10 @@ function renderPointActions() {
   }
   if (isBidding) renderBidForm(player);
   renderRoundSummary();
-  if (player !== null && opponent === 'local' && readyBidder !== player && !handoffDialog.open) {
-    byId('handoff-detail').textContent = `${playerName(player)}準備好後再繼續。請讓另一位玩家暫時移開視線。`;
-    handoffDialog.showModal();
-  }
 }
 
 function isComputerTurn() {
-  if (opponent !== 'computer' || view.result) return false;
+  if (room || view.result) return false;
   if (mode === 'memory') return view.turn === 1;
   return view.phase === 'select' ? view.selector === 1 : view.phase === 'bid' && !view.submitted[1];
 }
@@ -549,7 +536,7 @@ function update() {
   renderPointActions();
   renderRoom();
   scheduleComputer();
-  const resultDisplay = previousResult ? null : selectResultDisplay(opponent, mode, view);
+  const resultDisplay = previousResult ? null : selectResultDisplay(room ? 'room' : 'computer', mode, view);
   if (resultDisplay) {
     resetDialog.close();
     gameResultTitle.textContent = resultDisplay.title;
@@ -593,12 +580,10 @@ function updateRoomGame() {
 function enterRoom(session, snapshot) {
   clearTimeout(computerTimer);
   const bidValues = [...bidAmounts];
-  offlineGame = { mode, opponent, game, draft, readyBidder, bidValues };
+  offlineGame = { mode, game, draft, bidValues };
   mode = session.mode;
-  opponent = 'room';
   game = mode === 'memory' ? createMemoryGame() : createPointGame();
   draft = [];
-  readyBidder = null;
   copyMessage = '';
   room = new RoomConnection(session, snapshot, updateRoomGame);
   displayGame();
@@ -609,7 +594,7 @@ function leaveRoom() {
   room.close();
   if (!room.ended) rememberRoom({ ...room.session, active: false });
   room = null;
-  ({ mode, opponent, game, draft, readyBidder } = offlineGame);
+  ({ mode, game, draft } = offlineGame);
   displayGame();
   if (!bidForm.hidden) {
     if (offlineGame.bidValues.length) bidAmounts = offlineGame.bidValues;
@@ -762,7 +747,6 @@ confirmTrio.addEventListener('click', async () => {
   }
   if (!canSelectPoint() || !selectPointTrio(game, draft)) return;
   draft = [];
-  readyBidder = null;
   update();
   focusBidControls();
 });
@@ -781,18 +765,10 @@ bidForm.addEventListener('submit', async (event) => {
     return;
   }
   if (!submitPointBid(game, player, bidAmounts)) return;
-  readyBidder = null;
   update();
   focusBoardAfterBid();
 });
 
-handoffDialog.addEventListener('cancel', (event) => event.preventDefault());
-byId('accept-handoff').addEventListener('click', () => {
-  readyBidder = biddingPlayer();
-  handoffDialog.close();
-  renderPointActions();
-  focusBidControls();
-});
 byId('help').addEventListener('click', () => {
   const list = document.createElement('ol');
   for (const rule of modes[mode].rules) {
@@ -806,7 +782,7 @@ byId('help').addEventListener('click', () => {
 byId('restart').addEventListener('click', () => requestGame());
 byId('confirm-reset').addEventListener('click', () => {
   resetDialog.close();
-  startGame(pendingSettings);
+  startGame(pendingMode);
 });
 gameResultDialog.addEventListener('close', () => {
   gameResultImage.removeAttribute('src');
@@ -818,12 +794,7 @@ byId('play-again').addEventListener('click', () => {
 });
 for (const button of modeButtons) {
   button.addEventListener('click', () => {
-    if (mode !== button.dataset.mode) requestGame({ mode: button.dataset.mode, opponent });
-  });
-}
-for (const button of opponentButtons) {
-  button.addEventListener('click', () => {
-    if (opponent !== button.dataset.opponent) requestGame({ mode, opponent: button.dataset.opponent });
+    if (mode !== button.dataset.mode) requestGame(button.dataset.mode);
   });
 }
 

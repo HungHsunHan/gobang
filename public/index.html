@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101913">
-  <meta name="description" content="在盲五子棋記住棋子的歸屬，或在競價五子棋分配點數、爭取落子。支援電腦、同機雙人與房間代碼連線對戰。">
+  <meta name="description" content="在盲五子棋記住棋子的歸屬，或在競價五子棋分配點數、爭取落子。支援電腦與房間代碼連線對戰。">
   <title>藏陣 · 五子棋</title>
   <link rel="icon" type="image/png" href="./favicon.png">
   <link rel="stylesheet" href="./style.css">
@@ -42,8 +42,7 @@
           <h2 id="settings-title">對局設定</h2>
           <button type="button" id="restart" class="button button-outline"><span class="restart-icon" aria-hidden="true">↻</span>重新開局</button>
           <div class="segmented opponents" role="group" aria-label="選擇對手">
-            <button type="button" data-opponent="computer" aria-pressed="true">對戰電腦</button>
-            <button type="button" data-opponent="local" aria-pressed="false">同機雙人</button>
+            <button type="button" aria-pressed="true" disabled>對戰電腦</button>
             <button type="button" id="open-room" aria-haspopup="dialog">連線對戰</button>
           </div>
         </section>
@@ -114,11 +113,6 @@
     <div class="dialog-header"><h2 id="help-title">玩法說明</h2><form method="dialog"><button class="button button-outline close" aria-label="關閉玩法說明">×</button></form></div>
     <div id="rules"></div>
     <form method="dialog"><button class="button button-primary wide">回到棋盤</button></form>
-  </dialog>
-  <dialog id="handoff-dialog" aria-labelledby="handoff-title">
-    <div class="dialog-header"><h2 id="handoff-title">請交給另一位玩家</h2></div>
-    <p id="handoff-detail"></p>
-    <button id="accept-handoff" type="button" class="button button-primary wide">開始競價</button>
   </dialog>
   <dialog id="reset-dialog" aria-labelledby="reset-title">
     <div class="dialog-header"><h2 id="reset-title">結束目前對局？</h2></div>
